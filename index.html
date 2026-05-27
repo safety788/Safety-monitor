@@ -1374,12 +1374,24 @@ function toast(msg, type='success') {
   setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(100%)';t.style.transition='.3s'},2800);
   setTimeout(()=>t.remove(),3100);
 }
-
 function mkChart(id, cfg) {
-  if(charts[id]) { charts[id].destroy(); delete charts[id]; }
+  if(charts[id]) { 
+    charts[id].destroy(); 
+    delete charts[id]; 
+  }
   const el=document.getElementById(id);
   if(!el) return;
-  const ch=new Chart(el.getContext('2d'), cfg);
+  
+  // Grafik surilib yoki buzilib ketmasligi uchun chizma maydonini to'liq tozalash
+  const ctx = el.getContext('2d');
+  ctx.clearRect(0, 0, el.width, el.height);
+  
+  // O'lchamlar moslashuvchanligini (responsive) kafolatlash
+  if(!cfg.options) cfg.options = {};
+  cfg.options.responsive = true;
+  cfg.options.maintainAspectRatio = false;
+  
+  const ch=new Chart(ctx, cfg);
   charts[id]=ch;
   return ch;
 }
