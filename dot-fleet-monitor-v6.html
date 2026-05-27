@@ -1,0 +1,2627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Safety Monitor</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Exo+2:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg0: #05080f; --bg1: #0a0f1e; --bg2: #0f1628; --bg3: #141d32; --bg4: #1a2540;
+  --border: #1e2d47; --border2: #253a5e;
+  --text1: #e4eeff; --text2: #8ba8d4; --text3: #4a6280;
+  --amber: #f5a623; --amber2: #ffc147;
+  --safe: #00cc7a; --caution: #ffd447; --warn: #ff8c42; --danger: #ff3860;
+  --blue: #2e9cff; --purple: #8b5cf6;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Exo 2',sans-serif;background:var(--bg0);color:var(--text1);min-height:100vh;line-height:1.5}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% -10%,rgba(46,156,255,.06) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 110%,rgba(245,166,35,.04) 0%,transparent 60%);pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(30,45,71,.2) 1px,transparent 1px),linear-gradient(90deg,rgba(30,45,71,.2) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.app{position:relative;z-index:1;min-height:100vh}
+
+/* HEADER */
+.header{background:linear-gradient(180deg,rgba(14,21,40,.98) 0%,rgba(10,15,30,.95) 100%);border-bottom:1px solid var(--border);padding:0 24px;position:sticky;top:0;z-index:100;backdrop-filter:blur(20px)}
+.header-inner{max-width:1600px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--amber),var(--amber2));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px rgba(245,166,35,.4)}
+.logo-text{font-family:'Orbitron',sans-serif;font-size:15px;font-weight:700;letter-spacing:1px}
+.logo-sub{font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+.header-meta{display:flex;align-items:center;gap:16px;font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--safe);animation:pulse 2s ease-in-out infinite;display:inline-block;margin-right:5px}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,204,122,.4)}50%{opacity:.7;box-shadow:0 0 0 4px rgba(0,204,122,0)}}
+
+/* NAV */
+.nav-tabs{background:rgba(10,15,30,.8);border-bottom:1px solid var(--border);padding:0 24px;display:flex;gap:2px;overflow-x:auto;backdrop-filter:blur(10px)}
+.nav-tabs::-webkit-scrollbar{height:0}
+.nav-tab{padding:13px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);cursor:pointer;font-family:'Exo 2',sans-serif;font-size:12px;font-weight:600;letter-spacing:.5px;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:6px}
+.nav-tab:hover{color:var(--text2);border-bottom-color:var(--border2)}
+.nav-tab.active{color:var(--amber);border-bottom-color:var(--amber)}
+
+/* MAIN */
+.main{max-width:1600px;margin:0 auto;padding:24px}
+.tab-panel{display:none}
+.tab-panel.active{display:block;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* CARD */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.05),transparent)}
+.card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--text3);margin-bottom:16px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:8px}
+.card-title::before{content:'';display:inline-block;width:3px;height:12px;background:var(--amber);border-radius:2px;flex-shrink:0}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px 18px 18px 22px;position:relative;overflow:hidden;transition:all .2s}
+.stat-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.accent-bar{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:12px 0 0 12px}
+.stat-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;font-family:'JetBrains Mono',monospace;margin-bottom:7px}
+.stat-value{font-family:'Orbitron',sans-serif;font-size:26px;font-weight:700;line-height:1;margin-bottom:5px}
+.stat-sub{font-size:10px;color:var(--text3)}
+
+/* GAUGES */
+.gauges-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:22px}
+.gauge-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:22px 18px 16px;text-align:center;position:relative;overflow:hidden;transition:all .3s}
+.gauge-card:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.gauge-wrapper{position:relative;width:156px;height:96px;margin:0 auto 10px}
+.gauge-svg{width:100%;height:100%}
+.gauge-label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:2px;text-transform:uppercase;letter-spacing:1px}
+.gauge-status{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:3px 10px;border-radius:20px;font-weight:700;text-transform:uppercase;letter-spacing:.8px}
+.status-safe{background:rgba(0,204,122,.15);color:var(--safe)}
+.status-caution{background:rgba(255,212,71,.15);color:var(--caution)}
+.status-warning{background:rgba(255,140,66,.15);color:var(--warn)}
+.status-danger{background:rgba(255,56,96,.15);color:var(--danger)}
+.gauge-threshold{font-size:9px;color:var(--text3);margin-top:5px;font-family:'JetBrains Mono',monospace}
+
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+
+/* FORM */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'JetBrains Mono',monospace}
+input,select,textarea{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 13px;color:var(--text1);font-family:'Exo 2',sans-serif;font-size:13px;transition:all .2s;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--amber);box-shadow:0 0 0 3px rgba(245,166,35,.1)}
+select option{background:var(--bg3);color:var(--text1)}
+
+/* VIOLATION ITEMS */
+.violations-tabs{display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px;flex-wrap:wrap}
+.viol-tab{padding:6px 14px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;transition:all .2s;font-family:'Exo 2',sans-serif;color:var(--text2)}
+.viol-tab:hover{border-color:var(--border2);color:var(--text1)}
+.viol-tab.active{background:var(--amber);color:var(--bg0);border-color:var(--amber)}
+.viol-panel{display:none}
+.viol-panel.active{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:7px}
+.viol-item{display:flex;align-items:center;gap:9px;padding:8px 11px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;cursor:pointer;transition:all .15s}
+.viol-item:hover{border-color:var(--border2);background:var(--bg4)}
+.viol-item input[type="checkbox"]{width:15px;height:15px;padding:0;accent-color:var(--amber);cursor:pointer;flex-shrink:0}
+.viol-item label{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text2);cursor:pointer;flex:1;font-family:'Exo 2',sans-serif}
+.viol-severity{font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;flex-shrink:0}
+.sev-low{background:rgba(0,204,122,.15);color:var(--safe)}
+.sev-med{background:rgba(255,212,71,.15);color:var(--caution)}
+.sev-high{background:rgba(255,140,66,.15);color:var(--warn)}
+.sev-crit{background:rgba(255,56,96,.15);color:var(--danger)}
+
+/* BUTTONS */
+.btn{padding:9px 18px;border:none;border-radius:8px;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;letter-spacing:.4px}
+.btn-primary{background:linear-gradient(135deg,var(--amber),var(--amber2));color:var(--bg0);box-shadow:0 4px 15px rgba(245,166,35,.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(245,166,35,.4)}
+.btn-secondary{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--border2);color:var(--text1)}
+.btn-danger{background:rgba(255,56,96,.12);color:var(--danger);border:1px solid rgba(255,56,96,.25)}
+.btn-danger:hover{background:rgba(255,56,96,.22)}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--bg3);border-bottom:1px solid var(--border)}
+th{padding:9px 12px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);font-family:'JetBrains Mono',monospace;white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background .12s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+td{padding:9px 12px;font-size:11px;color:var(--text2);white-space:nowrap}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:3px 7px;border-radius:4px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.badge-safe{background:rgba(0,204,122,.15);color:var(--safe)}
+.badge-caution{background:rgba(255,212,71,.15);color:var(--caution)}
+.badge-warning{background:rgba(255,140,66,.15);color:var(--warn)}
+.badge-danger{background:rgba(255,56,96,.15);color:var(--danger)}
+.badge-blue{background:rgba(46,156,255,.15);color:var(--blue)}
+
+/* CHART */
+.chart-container{position:relative;height:270px}
+
+/* ALERTS */
+.alert-banner{padding:11px 15px;border-radius:8px;margin-bottom:14px;display:flex;align-items:center;gap:9px;font-size:12px;font-weight:500;border-left:3px solid}
+.alert-danger{background:rgba(255,56,96,.08);border-color:var(--danger);color:#ff8aaa}
+.alert-warning{background:rgba(255,140,66,.08);border-color:var(--warn);color:#ffb380}
+.alert-info{background:rgba(46,156,255,.08);border-color:var(--blue);color:#80c5ff}
+
+/* SECTION HEADER */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.section-title{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--text1);letter-spacing:1px}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--border);margin:18px 0}
+
+/* EMPTY */
+.empty-state{text-align:center;padding:36px 20px;color:var(--text3)}
+.empty-state-icon{font-size:32px;margin-bottom:10px;opacity:.4}
+.empty-state-text{font-size:12px}
+
+/* MONITORING OVERVIEW */
+.monitoring-overview{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.monitor-stat{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;position:relative}
+.monitor-stat-val{font-family:'Orbitron',sans-serif;font-size:26px;font-weight:700;margin-bottom:4px}
+.monitor-stat-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px}
+
+/* BASICS BREAKDOWN */
+.basics-breakdown{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+.basic-detail-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px}
+.basic-detail-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.basic-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px}
+.violation-list{display:flex;flex-direction:column;gap:4px;margin-top:8px;max-height:200px;overflow-y:auto}
+.violation-list::-webkit-scrollbar{width:4px}
+.violation-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.viol-entry{display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:var(--bg4);border-radius:4px;font-size:10px}
+.viol-name{color:var(--text2);flex:1;margin-right:6px}
+.viol-count{font-family:'JetBrains Mono',monospace;color:var(--text3);font-size:9px}
+
+/* MONITORING FILTERS */
+.monitoring-filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-end}
+.filter-group{display:flex;flex-direction:column;gap:4px}
+.filter-group input,.filter-group select{padding:7px 10px;font-size:12px}
+
+/* TOAST */
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:11px 15px;display:flex;align-items:center;gap:10px;font-size:12px;min-width:240px;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:slideIn .3s ease}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast-success{border-left:3px solid var(--safe)}
+.toast-error{border-left:3px solid var(--danger)}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg1)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* WEIGHT TABLE */
+.weight-table th{padding:7px 10px;font-size:9px}
+.weight-table td{padding:6px 10px;font-size:11px}
+
+/* DRIVER RANKING TABLE */
+.drv-rank-table{width:100%;border-collapse:collapse}
+.drv-rank-table thead tr{background:var(--bg3);border-bottom:2px solid var(--border2)}
+.drv-rank-table th{padding:9px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);font-family:'JetBrains Mono',monospace;white-space:nowrap;cursor:pointer;user-select:none;transition:color .15s}
+.drv-rank-table th:hover{color:var(--amber)}
+.drv-rank-table th.sort-asc::after{content:' ▲';font-size:8px;color:var(--amber)}
+.drv-rank-table th.sort-desc::after{content:' ▼';font-size:8px;color:var(--amber)}
+.drv-rank-table tbody tr{border-bottom:1px solid var(--border);transition:background .12s}
+.drv-rank-table tbody tr:last-child{border-bottom:none}
+.drv-rank-table tbody tr:hover{background:rgba(255,255,255,.025)}
+.drv-rank-table td{padding:9px 10px;font-size:12px;color:var(--text2);white-space:nowrap}
+.drv-rank-num{color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:10px;text-align:center}
+.drv-rank-name{color:var(--text1);font-weight:600;font-size:12px}
+.drv-rank-sub{color:var(--text3);font-size:9px;font-family:'JetBrains Mono',monospace;margin-top:1px}
+.drv-stat-cell{text-align:center}
+.drv-vn{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--danger)}
+.drv-cn{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--safe)}
+.drv-in{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--blue)}
+.drv-bar-cell{min-width:90px}
+.drv-bar-wrap{display:flex;gap:1px;height:8px;border-radius:4px;overflow:hidden;background:var(--bg4)}
+.drv-bar-vn{background:var(--danger);height:100%;border-radius:4px 0 0 4px;transition:width .5s ease}
+.drv-bar-cn{background:var(--safe);height:100%;border-radius:0 4px 4px 0;transition:width .5s ease}
+
+/* OOS TOGGLE */
+.oos-toggle{display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 5px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.5px;cursor:pointer;border:1px solid rgba(255,56,96,.3);background:rgba(255,56,96,.07);color:#ff6b87;transition:all .15s;user-select:none;flex-shrink:0;margin-left:auto}
+.oos-toggle:hover{background:rgba(255,56,96,.15);border-color:rgba(255,56,96,.5)}
+.oos-toggle.oos-active{background:rgba(255,56,96,.22);border-color:var(--danger);color:var(--danger);box-shadow:0 0 6px rgba(255,56,96,.25)}
+.oos-toggle input[type="checkbox"]{width:11px;height:11px;padding:0;accent-color:var(--danger);cursor:pointer;flex-shrink:0}
+.viol-item.has-oos{border-color:rgba(255,56,96,.3);background:rgba(255,56,96,.04)}
+.viol-item.has-oos:hover{border-color:rgba(255,56,96,.5)}
+
+/* MONTH STAT ROW */
+.month-stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px}
+.month-stat{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
+.month-stat-val{font-family:'Orbitron',sans-serif;font-size:20px;font-weight:700;margin-bottom:3px}
+.month-stat-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px}
+
+@media(max-width:1024px){
+  .gauges-grid,.basics-breakdown,.grid-2,.grid-3,.monitoring-overview{grid-template-columns:1fr}
+  .main{padding:16px}
+}
+@media(max-width:640px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .monitoring-overview{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">🚛</div>
+      <div>
+        <div class="logo-text">SAFETY MONITOR</div>
+        <div class="logo-sub">Safety Compliance System</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <span><span class="status-dot"></span>LIVE</span>
+      <span id="currentTime">--:--:--</span>
+      <span id="currentDate" style="color:var(--text2)">---</span>
+    </div>
+  </div>
+</header>
+
+<!-- NAV TABS -->
+<nav class="nav-tabs">
+  <button class="nav-tab active" onclick="switchTab('dashboard',this)">📊 Dashboard</button>
+  <button class="nav-tab" onclick="switchTab('entry',this)">➕ Ma'lumot Kiritish</button>
+  <button class="nav-tab" onclick="switchTab('monthly',this)">📅 Oylik Tahlil</button>
+  <button class="nav-tab" onclick="switchTab('stations',this)">🗺️ Shtat / Stansiya</button>
+  <button class="nav-tab" onclick="switchTab('safety',this)">🛡️ Safety Score</button>
+  <button class="nav-tab" onclick="switchTab('monitoring',this)">👁️ Monitoring</button>
+</nav>
+
+<main class="main">
+
+<!-- ===== DASHBOARD ===== -->
+<div class="tab-panel active" id="tab-dashboard">
+  <div id="alerts-container"></div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="accent-bar" style="background:var(--blue)"></div>
+      <div class="stat-label">Jami Inspeksiyalar</div>
+      <div class="stat-value" style="color:var(--blue)" id="s-total">0</div>
+      <div class="stat-sub">So'nggi 24 oy ichida</div>
+    </div>
+    <div class="stat-card">
+      <div class="accent-bar" style="background:var(--blue)"></div>
+      <div class="stat-label">🔧 Vehicle Maint. BASIC</div>
+      <div class="stat-value" id="s-vm">0 bal</div>
+      <div class="stat-sub" style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
+        <span id="s-vm-total" style="color:var(--text3);font-size:9px">Umumiy: — bal</span>
+        <span id="s-vm-week" style="color:#60a5fa;font-size:9px">Bu hafta: — bal</span>
+        <span id="s-vm-month" style="color:var(--blue);font-size:9px">Bu oy: — bal</span>
+        <span id="s-vm-st" style="color:var(--safe);font-size:9px">—</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="accent-bar" style="background:var(--caution)"></div>
+      <div class="stat-label">⏱️ HOS Compliance BASIC</div>
+      <div class="stat-value" id="s-hos">0 bal</div>
+      <div class="stat-sub" style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
+        <span id="s-hos-total" style="color:var(--text3);font-size:9px">Umumiy: — bal</span>
+        <span id="s-hos-week" style="color:#fbbf24;font-size:9px">Bu hafta: — bal</span>
+        <span id="s-hos-month" style="color:var(--caution);font-size:9px">Bu oy: — bal</span>
+        <span id="s-hos-st" style="color:var(--safe);font-size:9px">—</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="accent-bar" style="background:var(--warn)"></div>
+      <div class="stat-label">⚠️ Unsafe Driving BASIC</div>
+      <div class="stat-value" id="s-unsafe">0 bal</div>
+      <div class="stat-sub" style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
+        <span id="s-unsafe-total" style="color:var(--text3);font-size:9px">Umumiy: — bal</span>
+        <span id="s-unsafe-week" style="color:#fb923c;font-size:9px">Bu hafta: — bal</span>
+        <span id="s-unsafe-month" style="color:var(--warn);font-size:9px">Bu oy: — bal</span>
+        <span id="s-unsafe-st" style="color:var(--safe);font-size:9px">—</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="accent-bar" style="background:var(--safe)"></div>
+      <div class="stat-label">✅ Clean 1</div>
+      <div class="stat-value" style="color:var(--safe)" id="s-c1">0</div>
+      <div class="stat-sub" style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
+        <span id="s-c1-total" style="color:var(--text3);font-size:9px">Umumiy: 0</span>
+        <span id="s-c1-month" style="color:var(--safe);font-size:9px">Bu oy: 0</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="accent-bar" style="background:#00e5a0"></div>
+      <div class="stat-label">✅ Clean 2</div>
+      <div class="stat-value" style="color:#00e5a0" id="s-c2">0</div>
+      <div class="stat-sub" style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
+        <span id="s-c2-total" style="color:var(--text3);font-size:9px">Umumiy: 0</span>
+        <span id="s-c2-month" style="color:#00e5a0;font-size:9px">Bu oy: 0</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="accent-bar" style="background:#4ade80"></div>
+      <div class="stat-label">✅ Clean 3</div>
+      <div class="stat-value" style="color:#4ade80" id="s-c3">0</div>
+      <div class="stat-sub" style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
+        <span id="s-c3-total" style="color:var(--text3);font-size:9px">Umumiy: 0</span>
+        <span id="s-c3-month" style="color:#4ade80;font-size:9px">Bu oy: 0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clean per-month mini breakdown -->
+  <div class="card" style="margin-bottom:18px;padding:14px 18px">
+    <div class="card-title">📋 Clean 1 / Clean 2 / Clean 3 — Oylar Kesimida</div>
+    <div id="clean-monthly-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:4px"></div>
+  </div>
+
+  <!-- Gauges -->
+  <div class="gauges-grid">
+    <div class="gauge-card">
+      <div class="gauge-label" style="color:var(--blue)">Vehicle Maintenance</div>
+      <div class="gauge-wrapper">
+        <svg class="gauge-svg" viewBox="0 0 200 118">
+          <path d="M18 100 A82 82 0 0 1 182 100" stroke="#1a2540" stroke-width="18" fill="none" stroke-linecap="round"/>
+          <path id="g-vm-arc" d="M18 100 A82 82 0 0 1 18 100" stroke="var(--blue)" stroke-width="18" fill="none" stroke-linecap="round" style="transition:all .9s cubic-bezier(.4,0,.2,1)"/>
+          <text id="g-vm-val" x="100" y="87" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="28" font-weight="700" fill="var(--blue)">0</text>
+          <text x="100" y="107" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="#4a6280">BASIC %</text>
+        </svg>
+      </div>
+      <div id="g-vm-status" class="gauge-status status-safe">✓ Satisfactory</div>
+      <div class="gauge-threshold">Alert threshold: 80%</div>
+    </div>
+    <div class="gauge-card">
+      <div class="gauge-label" style="color:var(--caution)">HOS Compliance</div>
+      <div class="gauge-wrapper">
+        <svg class="gauge-svg" viewBox="0 0 200 118">
+          <path d="M18 100 A82 82 0 0 1 182 100" stroke="#1a2540" stroke-width="18" fill="none" stroke-linecap="round"/>
+          <path id="g-hos-arc" d="M18 100 A82 82 0 0 1 18 100" stroke="var(--caution)" stroke-width="18" fill="none" stroke-linecap="round" style="transition:all .9s cubic-bezier(.4,0,.2,1)"/>
+          <text id="g-hos-val" x="100" y="87" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="28" font-weight="700" fill="var(--caution)">0</text>
+          <text x="100" y="107" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="#4a6280">BASIC %</text>
+        </svg>
+      </div>
+      <div id="g-hos-status" class="gauge-status status-safe">✓ Satisfactory</div>
+      <div class="gauge-threshold">Alert threshold: 65%</div>
+    </div>
+    <div class="gauge-card">
+      <div class="gauge-label" style="color:var(--warn)">Unsafe Driving</div>
+      <div class="gauge-wrapper">
+        <svg class="gauge-svg" viewBox="0 0 200 118">
+          <path d="M18 100 A82 82 0 0 1 182 100" stroke="#1a2540" stroke-width="18" fill="none" stroke-linecap="round"/>
+          <path id="g-unsafe-arc" d="M18 100 A82 82 0 0 1 18 100" stroke="var(--warn)" stroke-width="18" fill="none" stroke-linecap="round" style="transition:all .9s cubic-bezier(.4,0,.2,1)"/>
+          <text id="g-unsafe-val" x="100" y="87" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="28" font-weight="700" fill="var(--warn)">0</text>
+          <text x="100" y="107" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="#4a6280">BASIC %</text>
+        </svg>
+      </div>
+      <div id="g-unsafe-status" class="gauge-status status-safe">✓ Satisfactory</div>
+      <div class="gauge-threshold">Alert threshold: 65%</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">So'nggi Tekshiruvlar</div>
+      <div id="recent-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Top Shtatlar (Inspectionlar soni)</div>
+      <div class="chart-container" style="height:220px"><canvas id="ch-top-states"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── DRIVER RANKING ─────────────────────────────────── -->
+  <div class="card" style="margin-top:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+      <div class="card-title" style="margin-bottom:0">🏆 Haydovchilar Reytingi</div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--danger);font-family:'JetBrains Mono',monospace">
+          <span style="width:9px;height:9px;border-radius:2px;background:var(--danger);display:inline-block"></span>VN = Violation inspeksiyalar
+        </span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--safe);font-family:'JetBrains Mono',monospace">
+          <span style="width:9px;height:9px;border-radius:2px;background:var(--safe);display:inline-block"></span>CN = Clean inspeksiyalar
+        </span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--blue);font-family:'JetBrains Mono',monospace">
+          <span style="width:9px;height:9px;border-radius:2px;background:var(--blue);display:inline-block"></span>IN = Jami inspeksiyalar
+        </span>
+      </div>
+    </div>
+    <div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border)">
+      <table class="drv-rank-table" id="drv-rank-table">
+        <thead>
+          <tr>
+            <th style="width:36px;text-align:center">#</th>
+            <th onclick="sortDrivers('name')">Haydovchi</th>
+            <th class="drv-stat-cell sort-desc" id="drv-th-in"  onclick="sortDrivers('in')"   title="Jami Inspeksiyalar">IN</th>
+            <th class="drv-stat-cell"           id="drv-th-cn"  onclick="sortDrivers('cn')"   title="Clean inspeksiyalar">CN</th>
+            <th class="drv-stat-cell"           id="drv-th-vn"  onclick="sortDrivers('vn')"   title="Violation inspeksiyalar">VN</th>
+            <th style="min-width:130px">VN / CN Nisbati</th>
+            <th class="drv-stat-cell"           id="drv-th-rate" onclick="sortDrivers('rate')" title="Clean foiz">Clean %</th>
+          </tr>
+        </thead>
+        <tbody id="drv-rank-body"></tbody>
+      </table>
+    </div>
+    <div id="drv-rank-empty" class="empty-state" style="display:none">
+      <div class="empty-state-icon">👤</div>
+      <div class="empty-state-text">Hali haydovchi ma'lumotlari kiritilmagan</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DATA ENTRY ===== -->
+<div class="tab-panel" id="tab-entry">
+  <div class="card">
+    <div class="card-title">Yangi Inspeksiya Qo'shish</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Sana *</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="form-group">
+        <label>Shtat *</label>
+        <select id="f-state">
+          <option value="">— Tanlang —</option>
+          <option>AL</option><option>AK</option><option>AZ</option><option>AR</option>
+          <option>CA</option><option>CO</option><option>CT</option><option>DE</option>
+          <option>FL</option><option>GA</option><option>ID</option><option>IL</option>
+          <option>IN</option><option>IA</option><option>KS</option><option>KY</option>
+          <option>LA</option><option>ME</option><option>MD</option><option>MA</option>
+          <option>MI</option><option>MN</option><option>MS</option><option>MO</option>
+          <option>MT</option><option>NE</option><option>NV</option><option>NH</option>
+          <option>NJ</option><option>NM</option><option>NY</option><option>NC</option>
+          <option>ND</option><option>OH</option><option>OK</option><option>OR</option>
+          <option>PA</option><option>RI</option><option>SC</option><option>SD</option>
+          <option>TN</option><option>TX</option><option>UT</option><option>VT</option>
+          <option>VA</option><option>WA</option><option>WV</option><option>WI</option><option>WY</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Weigh Station</label>
+        <input type="text" id="f-station" placeholder="Masalan: Amarillo WS">
+      </div>
+      <div class="form-group">
+        <label>Inspeksiya Darajasi</label>
+        <select id="f-level">
+          <option value="1">Level I – Full Inspection</option>
+          <option value="2">Level II – Walk-Around</option>
+          <option value="3">Level III – Driver Only</option>
+          <option value="4">Level IV – Special Inspection</option>
+          <option value="5">Level V – Vehicle Only</option>
+          <option value="6">Level VI – Enhanced NAS/MS</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Haydovchi Ismi</label>
+        <input type="text" id="f-driver" placeholder="To'liq ism">
+      </div>
+      <div class="form-group">
+        <label>Avtomobil ID</label>
+        <input type="text" id="f-vehicle" placeholder="Masalan: TRK-001">
+      </div>
+      <div class="form-group">
+        <label>Inspeksiya Notes</label>
+        <input type="text" id="f-notes" placeholder="Qo'shimcha eslatma...">
+      </div>
+      <div class="form-group">
+        <label>Inspeksiya Natijasi</label>
+        <select id="f-result">
+          <option value="clean1">CLEAN 1</option>
+          <option value="clean2">CLEAN 2</option>
+          <option value="clean3">CLEAN 3</option>
+          <option value="log">LOG</option>
+          <option value="uns_log">UNS &amp; LOG</option>
+          <option value="unsafe">UNSAFE</option>
+          <option value="veh_log">VEH &amp; LOG</option>
+          <option value="veh_uns">VEH &amp; UNS</option>
+          <option value="vehicle">VEHICLE</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="violations-section" style="margin-top:22px">
+      <div class="divider" style="margin-top:0"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);font-family:'JetBrains Mono',monospace">
+          ⚠ Violations (Buzilishlar) — Tegishlilarni belgilang
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="font-size:10px;color:var(--text3)">Live SMS Preview:</div>
+          <div style="display:flex;gap:6px">
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:10px;font-family:'JetBrains Mono',monospace">VM: <span id="preview-vm" style="color:var(--blue)">0</span></div>
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:10px;font-family:'JetBrains Mono',monospace">HOS: <span id="preview-hos" style="color:var(--caution)">0</span></div>
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:10px;font-family:'JetBrains Mono',monospace">Unsafe: <span id="preview-unsafe" style="color:var(--warn)">0</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- Violation search bar -->
+      <div style="position:relative;margin-bottom:12px">
+        <input type="text" id="viol-search" placeholder="🔍 Violation kodi yoki tavsif bo'yicha qidiring... (392.16, brake, tormoz)" 
+          style="width:100%;padding:9px 13px 9px 36px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text1);font-family:'Exo 2',sans-serif;font-size:12px;outline:none;transition:border-color .2s"
+          oninput="filterViolations(this.value)" onfocus="this.style.borderColor='var(--amber)'" onblur="this.style.borderColor='var(--border)'">
+        <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a6280" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span id="viol-search-count" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace"></span>
+      </div>
+      <div class="violations-tabs">
+        <button class="viol-tab active" id="vtab-vehicle" onclick="switchViolTab('vehicle',this)">🔧 Vehicle Maintenance</button>
+        <button class="viol-tab" id="vtab-hos" onclick="switchViolTab('hos',this)">⏱️ HOS Compliance</button>
+        <button class="viol-tab" id="vtab-unsafe" onclick="switchViolTab('unsafe',this)">⚠️ Unsafe Driving</button>
+        <button class="viol-tab" id="vtab-fitness" onclick="switchViolTab('fitness',this)">🪪 Driver Fitness / D&amp;A</button>
+      </div>
+      <div class="viol-panel active" id="vp-vehicle"></div>
+      <div class="viol-panel" id="vp-hos"></div>
+      <div class="viol-panel" id="vp-unsafe"></div>
+      <div class="viol-panel" id="vp-fitness"></div>
+    </div>
+
+    <div class="divider"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;align-items:center">
+      <span id="entry-viol-count" style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace">0 violation tanlangan</span>
+      <button class="btn btn-secondary" onclick="clearForm()">🗑️ Tozalash</button>
+      <button class="btn btn-primary" onclick="submitInspection()">✅ Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MONTHLY ===== -->
+<div class="tab-panel" id="tab-monthly">
+  <div class="section-header">
+    <div class="section-title">Oylik Tahlil</div>
+    <select id="monthly-year" onchange="renderMonthly()" style="padding:7px 12px;font-size:12px;width:auto"></select>
+  </div>
+  <div id="monthly-summary" class="month-stat-row"></div>
+  <!-- Clean 1 / 2 / 3 per month table -->
+  <div class="card" style="margin-bottom:18px">
+    <div class="card-title" style="color:var(--safe)">✅ Clean 1 / Clean 2 / Clean 3 — Oylar bo'yicha</div>
+    <div id="monthly-clean-grid" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:600px">
+        <thead><tr id="monthly-clean-head" style="background:var(--bg3);border-bottom:1px solid var(--border)">
+          <th style="padding:7px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);font-family:'JetBrains Mono',monospace">Oy</th>
+          <th style="padding:7px 10px;text-align:center;font-size:9px;font-weight:700;color:var(--safe);font-family:'JetBrains Mono',monospace">CLEAN 1</th>
+          <th style="padding:7px 10px;text-align:center;font-size:9px;font-weight:700;color:#00e5a0;font-family:'JetBrains Mono',monospace">CLEAN 2</th>
+          <th style="padding:7px 10px;text-align:center;font-size:9px;font-weight:700;color:#4ade80;font-family:'JetBrains Mono',monospace">CLEAN 3</th>
+          <th style="padding:7px 10px;text-align:center;font-size:9px;font-weight:700;color:var(--text3);font-family:'JetBrains Mono',monospace">Jami Clean</th>
+          <th style="padding:7px 10px;text-align:center;font-size:9px;font-weight:700;color:var(--text3);font-family:'JetBrains Mono',monospace">Jami Insp.</th>
+        </tr></thead>
+        <tbody id="monthly-clean-body"></tbody>
+      </table>
+    </div>
+  </div>
+  <div style="display:grid;gap:18px">
+    <!-- Vehicle Maintenance -->
+    <div class="card">
+      <div class="card-title" style="color:var(--blue)">🔧 Vehicle Maintenance — Oylar Kesimida</div>
+      <div class="chart-container"><canvas id="ch-m-vm"></canvas></div>
+      <div style="overflow-x:auto;margin-top:14px">
+        <table id="tbl-m-vm" style="width:100%;border-collapse:collapse;min-width:520px;font-size:11px"></table>
+      </div>
+    </div>
+    <!-- HOS Compliance -->
+    <div class="card">
+      <div class="card-title" style="color:var(--caution)">⏱️ HOS Compliance — Oylar Kesimida</div>
+      <div class="chart-container"><canvas id="ch-m-hos"></canvas></div>
+      <div style="overflow-x:auto;margin-top:14px">
+        <table id="tbl-m-hos" style="width:100%;border-collapse:collapse;min-width:520px;font-size:11px"></table>
+      </div>
+    </div>
+    <!-- Unsafe Driving -->
+    <div class="card">
+      <div class="card-title" style="color:var(--warn)">⚠️ Unsafe Driving — Oylar Kesimida</div>
+      <div class="chart-container"><canvas id="ch-m-unsafe"></canvas></div>
+      <div style="overflow-x:auto;margin-top:14px">
+        <table id="tbl-m-unsafe" style="width:100%;border-collapse:collapse;min-width:520px;font-size:11px"></table>
+      </div>
+    </div>
+    <!-- Yearly Cumulative Summary -->
+    <div class="card" style="border-color:var(--amber);box-shadow:0 0 0 1px rgba(245,166,35,.15)">
+      <div class="card-title" style="color:var(--amber)">📊 Yillik Umumiy Hisobot — Violations & Jarima Ballari</div>
+      <div style="overflow-x:auto">
+        <table id="tbl-m-yearly" style="width:100%;border-collapse:collapse;min-width:700px;font-size:11px"></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== STATIONS ===== -->
+<div class="tab-panel" id="tab-stations">
+  <div class="grid-2">
+
+    <!-- ── STATES COLUMN ── -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+
+      <!-- 1. Clean inspections bar chart -->
+      <div class="card">
+        <div class="card-title" style="color:var(--safe)">✅ Shtat Bo'yicha Inspectionlar (Clean)</div>
+        <div class="chart-container" style="height:290px"><canvas id="ch-states-clean"></canvas></div>
+      </div>
+
+      <!-- 2. Total inspections ranked list (original) -->
+      <div class="card">
+        <div class="card-title">🗺️ Top Shtatlar (Inspectionlar soni)</div>
+        <div id="tbl-states"></div>
+      </div>
+
+      <!-- 3. NEW – Violations-only bar chart -->
+      <div class="card">
+        <div class="card-title" style="color:var(--danger)">⚠️ Shtat Bo'yicha Inspectionlar (Violation)</div>
+        <div class="chart-container" style="height:290px"><canvas id="ch-states-viol"></canvas></div>
+      </div>
+
+    </div>
+
+    <!-- ── WEIGH STATIONS COLUMN ── -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+
+      <!-- 1. Clean inspections bar chart -->
+      <div class="card">
+        <div class="card-title" style="color:var(--safe)">✅ Weigh Station Bo'yicha Inspectionlar (Clean)</div>
+        <div class="chart-container" style="height:290px"><canvas id="ch-wstations-clean"></canvas></div>
+      </div>
+
+      <!-- 2. Total inspections ranked list (original) -->
+      <div class="card">
+        <div class="card-title">⚖️ Top Weigh Stations (Inspectionlar soni)</div>
+        <div id="tbl-wstations"></div>
+      </div>
+
+      <!-- 3. NEW – Violations-only bar chart -->
+      <div class="card">
+        <div class="card-title" style="color:var(--danger)">⚠️ Weigh Station Bo'yicha Inspectionlar (Violation)</div>
+        <div class="chart-container" style="height:290px"><canvas id="ch-wstations-viol"></canvas></div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== SAFETY SCORE ===== -->
+<div class="tab-panel" id="tab-safety">
+  <div class="section-header">
+    <div class="section-title">FMCSA BASIC Safety Score</div>
+    <div style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace">SMS Time-Weighted Severity Methodology</div>
+  </div>
+  <div class="alert-banner alert-info">
+    ℹ️ FMCSA Alert Thresholds: <strong>Vehicle Maintenance ≥ 80%</strong> · <strong>HOS Compliance ≥ 65%</strong> · <strong>Unsafe Driving ≥ 65%</strong>
+  </div>
+
+  <div class="gauges-grid">
+    <div class="gauge-card">
+      <div class="gauge-label" style="color:var(--blue)">Vehicle Maintenance</div>
+      <div class="gauge-wrapper">
+        <svg class="gauge-svg" viewBox="0 0 200 118">
+          <path d="M18 100 A82 82 0 0 1 182 100" stroke="#1a2540" stroke-width="18" fill="none" stroke-linecap="round"/>
+          <path id="sg-vm-arc" d="M18 100 A82 82 0 0 1 18 100" stroke="var(--blue)" stroke-width="18" fill="none" stroke-linecap="round" style="transition:all .9s ease"/>
+          <text id="sg-vm-val" x="100" y="87" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="28" font-weight="700" fill="var(--blue)">0</text>
+          <text x="100" y="107" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="#4a6280">/ 90</text>
+        </svg>
+      </div>
+      <div id="sg-vm-status" class="gauge-status status-safe">✓ Satisfactory</div>
+      <div style="margin-top:10px;font-size:10px;color:var(--text3)">Weighted Pts: <span id="sg-vm-pts" style="color:var(--text1);font-family:'JetBrains Mono',monospace">0</span> · Violations: <span id="sg-vm-cnt" style="color:var(--text1);font-family:'JetBrains Mono',monospace">0</span></div>
+    </div>
+    <div class="gauge-card">
+      <div class="gauge-label" style="color:var(--caution)">HOS Compliance</div>
+      <div class="gauge-wrapper">
+        <svg class="gauge-svg" viewBox="0 0 200 118">
+          <path d="M18 100 A82 82 0 0 1 182 100" stroke="#1a2540" stroke-width="18" fill="none" stroke-linecap="round"/>
+          <path id="sg-hos-arc" d="M18 100 A82 82 0 0 1 18 100" stroke="var(--caution)" stroke-width="18" fill="none" stroke-linecap="round" style="transition:all .9s ease"/>
+          <text id="sg-hos-val" x="100" y="87" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="28" font-weight="700" fill="var(--caution)">0</text>
+          <text x="100" y="107" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="#4a6280">/ 90</text>
+        </svg>
+      </div>
+      <div id="sg-hos-status" class="gauge-status status-safe">✓ Satisfactory</div>
+      <div style="margin-top:10px;font-size:10px;color:var(--text3)">Weighted Pts: <span id="sg-hos-pts" style="color:var(--text1);font-family:'JetBrains Mono',monospace">0</span> · Violations: <span id="sg-hos-cnt" style="color:var(--text1);font-family:'JetBrains Mono',monospace">0</span></div>
+    </div>
+    <div class="gauge-card">
+      <div class="gauge-label" style="color:var(--warn)">Unsafe Driving</div>
+      <div class="gauge-wrapper">
+        <svg class="gauge-svg" viewBox="0 0 200 118">
+          <path d="M18 100 A82 82 0 0 1 182 100" stroke="#1a2540" stroke-width="18" fill="none" stroke-linecap="round"/>
+          <path id="sg-unsafe-arc" d="M18 100 A82 82 0 0 1 18 100" stroke="var(--warn)" stroke-width="18" fill="none" stroke-linecap="round" style="transition:all .9s ease"/>
+          <text id="sg-unsafe-val" x="100" y="87" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="28" font-weight="700" fill="var(--warn)">0</text>
+          <text x="100" y="107" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="#4a6280">/ 90</text>
+        </svg>
+      </div>
+      <div id="sg-unsafe-status" class="gauge-status status-safe">✓ Satisfactory</div>
+      <div style="margin-top:10px;font-size:10px;color:var(--text3)">Weighted Pts: <span id="sg-unsafe-pts" style="color:var(--text1);font-family:'JetBrains Mono',monospace">0</span> · Violations: <span id="sg-unsafe-cnt" style="color:var(--text1);font-family:'JetBrains Mono',monospace">0</span></div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:18px">
+    <div class="card">
+      <div class="card-title">Hisoblash Formulasi</div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:2">
+        <div style="color:var(--amber)"># FMCSA SMS Scoring:</div>
+        <div style="color:var(--text2)">score = Σ(min(severity × time_weight, 30))</div>
+        <div style="color:var(--text3);margin-top:8px"># Har bir violation uchun max jarima:</div>
+        <div style="color:var(--danger)">max 30 ball (bitta violation uchun)</div>
+        <div style="color:var(--text3);margin-top:8px"># Vaqt og'irliklari:</div>
+        <div><span style="color:var(--danger)">0–6 oy</span> <span style="color:var(--text3)">→</span> <span style="color:var(--danger)">3× multiplikator</span></div>
+        <div><span style="color:var(--warn)">7–12 oy</span> <span style="color:var(--text3)">→</span> <span style="color:var(--warn)">2× multiplikator</span></div>
+        <div><span style="color:var(--caution)">13–24 oy</span> <span style="color:var(--text3)">→</span> <span style="color:var(--caution)">1× multiplikator</span></div>
+        <div><span style="color:var(--text3)">24+ oy</span> <span style="color:var(--text3)">→ 0 (hisoblanmaydi)</span></div>
+        <div style="color:var(--text3);margin-top:8px"># OOS qo'shimcha:</div>
+        <div style="color:var(--danger)">OOS = +2 point (violation balga qo'shiladi)</div>
+        <div style="color:var(--text3);margin-top:8px"># Normalizatsiya:</div>
+        <div style="color:var(--safe)">BASIC% = min(90, pts/max_pts × 100)</div>
+      </div>
+      <div style="margin-top:14px">
+        <div class="card-title" style="margin-bottom:10px">Vaqt Og'irliklari Vizualizatsiyasi</div>
+        <div class="chart-container" style="height:150px"><canvas id="ch-time-w"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Severity Weight Jadvali</div>
+      <div class="table-wrap" style="max-height:380px;overflow-y:auto">
+        <table class="weight-table">
+          <thead><tr><th>Violation</th><th>Kategoriya</th><th>Severity</th></tr></thead>
+          <tbody id="sev-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--text3);margin-bottom:14px;font-family:'JetBrains Mono',monospace">BASIC Kategoriyalar bo'yicha Violations Tahlili</div>
+  <div class="basics-breakdown">
+    <div class="basic-detail-card">
+      <div class="basic-detail-header">
+        <div class="basic-title" style="color:var(--blue)">🔧 Vehicle Maintenance</div>
+        <div id="bd-vm-sc" class="badge badge-safe">0%</div>
+      </div>
+      <div id="bd-vm-list" class="violation-list"></div>
+    </div>
+    <div class="basic-detail-card">
+      <div class="basic-detail-header">
+        <div class="basic-title" style="color:var(--caution)">⏱️ HOS Compliance</div>
+        <div id="bd-hos-sc" class="badge badge-safe">0%</div>
+      </div>
+      <div id="bd-hos-list" class="violation-list"></div>
+    </div>
+    <div class="basic-detail-card">
+      <div class="basic-detail-header">
+        <div class="basic-title" style="color:var(--warn)">⚠️ Unsafe Driving</div>
+        <div id="bd-unsafe-sc" class="badge badge-safe">0%</div>
+      </div>
+      <div id="bd-unsafe-list" class="violation-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MONITORING ===== -->
+<div class="tab-panel" id="tab-monitoring">
+  <div class="monitoring-overview">
+    <div class="monitor-stat">
+      <div class="monitor-stat-val" id="m-total" style="color:var(--blue)">0</div>
+      <div class="monitor-stat-lbl">Jami Inspeksiya</div>
+    </div>
+    <div class="monitor-stat">
+      <div class="monitor-stat-val" id="m-pass" style="color:var(--safe)">0</div>
+      <div class="monitor-stat-lbl">Clean 1/2/3 ✓</div>
+    </div>
+    <div class="monitor-stat">
+      <div class="monitor-stat-val" id="m-cond" style="color:var(--caution)">0</div>
+      <div class="monitor-stat-lbl">LOG / UNS ⚠</div>
+    </div>
+    <div class="monitor-stat">
+      <div class="monitor-stat-val" id="m-fail" style="color:var(--danger)">0</div>
+      <div class="monitor-stat-lbl">VEH / VEHICLE ✗</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:18px">
+    <div class="card-title">Oylik Trend: Pass / Conditional / Fail</div>
+    <div class="chart-container" style="height:210px"><canvas id="ch-mon-trend"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div class="monitoring-filters">
+      <div class="filter-group">
+        <label>Boshlanish</label>
+        <input type="date" id="ff-from">
+      </div>
+      <div class="filter-group">
+        <label>Tugash</label>
+        <input type="date" id="ff-to">
+      </div>
+      <div class="filter-group">
+        <label>Natija</label>
+        <select id="ff-result">
+          <option value="">Barchasi</option>
+          <option value="clean1">CLEAN 1</option>
+          <option value="clean2">CLEAN 2</option>
+          <option value="clean3">CLEAN 3</option>
+          <option value="log">LOG</option>
+          <option value="uns_log">UNS &amp; LOG</option>
+          <option value="unsafe">UNSAFE</option>
+          <option value="veh_log">VEH &amp; LOG</option>
+          <option value="veh_uns">VEH &amp; UNS</option>
+          <option value="vehicle">VEHICLE</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Shtat</label>
+        <select id="ff-state"><option value="">Barchasi</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Kategoriya</label>
+        <select id="ff-cat">
+          <option value="">Barchasi</option>
+          <option value="vehicle">Vehicle Maint.</option>
+          <option value="hos">HOS</option>
+          <option value="unsafe">Unsafe</option>
+        </select>
+      </div>
+      <div class="filter-group" style="flex-direction:row;align-items:flex-end;gap:8px;margin-left:auto">
+        <button class="btn btn-secondary" style="padding:7px 14px;font-size:11px" onclick="applyFilters()">🔍 Filter</button>
+        <button class="btn btn-secondary" style="padding:7px 14px;font-size:11px" onclick="resetFilters()">↺ Reset</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Sana</th>
+            <th>Haydovchi</th>
+            <th>Avtomobil</th>
+            <th>Shtat</th>
+            <th>Weigh Station</th>
+            <th>Level</th>
+            <th>VM</th>
+            <th>HOS</th>
+            <th>Unsafe</th>
+            <th>Jami</th>
+            <th>Natija</th>
+            <th>Amal</th>
+          </tr>
+        </thead>
+        <tbody id="mon-tbody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;font-size:11px;color:var(--text3)">
+      <span id="mon-count">0 ta yozuv</span>
+      <button class="btn btn-secondary" style="font-size:11px;padding:6px 12px" onclick="exportCSV()">📥 Export CSV</button>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+<!-- EDIT MODAL -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;backdrop-filter:blur(4px);overflow-y:auto">
+  <div style="max-width:680px;margin:40px auto;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:28px;position:relative">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:var(--amber)">✏️ Yozuvni Tahrirlash</div>
+      <button onclick="closeEdit()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px 8px">✕</button>
+    </div>
+    <div class="form-grid" style="margin-bottom:18px">
+      <div class="form-group"><label>Sana *</label><input type="date" id="e-date"></div>
+      <div class="form-group"><label>Shtat *</label>
+        <select id="e-state">
+          <option value="">— Tanlang —</option>
+          <option>AL</option><option>AK</option><option>AZ</option><option>AR</option>
+          <option>CA</option><option>CO</option><option>CT</option><option>DE</option>
+          <option>FL</option><option>GA</option><option>ID</option><option>IL</option>
+          <option>IN</option><option>IA</option><option>KS</option><option>KY</option>
+          <option>LA</option><option>ME</option><option>MD</option><option>MA</option>
+          <option>MI</option><option>MN</option><option>MS</option><option>MO</option>
+          <option>MT</option><option>NE</option><option>NV</option><option>NH</option>
+          <option>NJ</option><option>NM</option><option>NY</option><option>NC</option>
+          <option>ND</option><option>OH</option><option>OK</option><option>OR</option>
+          <option>PA</option><option>RI</option><option>SC</option><option>SD</option>
+          <option>TN</option><option>TX</option><option>UT</option><option>VT</option>
+          <option>VA</option><option>WA</option><option>WV</option><option>WI</option><option>WY</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Weigh Station</label><input type="text" id="e-station" placeholder="Masalan: Amarillo WS"></div>
+      <div class="form-group"><label>Level</label>
+        <select id="e-level">
+          <option value="1">Level I – Full</option><option value="2">Level II – Walk-Around</option>
+          <option value="3">Level III – Driver Only</option><option value="4">Level IV – Special</option>
+          <option value="5">Level V – Vehicle Only</option><option value="6">Level VI – Enhanced</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Haydovchi</label><input type="text" id="e-driver" placeholder="To'liq ism"></div>
+      <div class="form-group"><label>Avtomobil ID</label><input type="text" id="e-vehicle" placeholder="TRK-001"></div>
+      <div class="form-group"><label>Natija</label>
+        <select id="e-result">
+          <option value="clean1">CLEAN 1</option>
+          <option value="clean2">CLEAN 2</option>
+          <option value="clean3">CLEAN 3</option>
+          <option value="log">LOG</option>
+          <option value="uns_log">UNS &amp; LOG</option>
+          <option value="unsafe">UNSAFE</option>
+          <option value="veh_log">VEH &amp; LOG</option>
+          <option value="veh_uns">VEH &amp; UNS</option>
+          <option value="vehicle">VEHICLE</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Notes</label><input type="text" id="e-notes" placeholder="Eslatma..."></div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin-bottom:12px;font-family:'JetBrains Mono',monospace">⚠ Violations</div>
+      <div style="position:relative;margin-bottom:10px">
+        <input type="text" id="e-viol-search" placeholder="🔍 Violation qidirish..." oninput="filterEditViolations(this.value)"
+          style="width:100%;padding:8px 13px 8px 34px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text1);font-size:12px;outline:none">
+        <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%)" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a6280" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <div class="violations-tabs" style="margin-bottom:10px">
+        <button class="viol-tab active" id="etab-vehicle" onclick="switchEditViolTab('vehicle',this)">🔧 Vehicle</button>
+        <button class="viol-tab" id="etab-hos" onclick="switchEditViolTab('hos',this)">⏱️ HOS</button>
+        <button class="viol-tab" id="etab-unsafe" onclick="switchEditViolTab('unsafe',this)">⚠️ Unsafe</button>
+        <button class="viol-tab" id="etab-fitness" onclick="switchEditViolTab('fitness',this)">🪪 Fitness/D&amp;A</button>
+      </div>
+      <div id="evp-vehicle" class="viol-panel active" style="max-height:220px;overflow-y:auto"></div>
+      <div id="evp-hos" class="viol-panel" style="max-height:220px;overflow-y:auto"></div>
+      <div id="evp-unsafe" class="viol-panel" style="max-height:220px;overflow-y:auto"></div>
+      <div id="evp-fitness" class="viol-panel" style="max-height:220px;overflow-y:auto"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeEdit()">Bekor qilish</button>
+      <button class="btn btn-primary" onclick="saveEdit()">💾 Saqlash</button>
+    </div>
+  </div>
+</div>
+<div class="toast-container" id="toasts"></div>
+
+<script>
+// ============================================================
+// VIOLATIONS CONFIG
+// ============================================================
+const VC = {
+  vehicle:{label:"Vehicle Maintenance",color:"#2e9cff",threshold:80,items:[
+    // Brakes
+    {id:"v_393_41_BNPB",     code:"393.41-BNPB",     label:"Brake inoperative/missing parking brake on power unit",                     labelUz:"Harakatlantiruvchi blokda stoyanka tormozi ishlamaydi yoki yo'q",           severity:4},
+    {id:"v_393_43A_TPV",     code:"393.43A-TPV",     label:"Air Brake - Inoperative or missing tractor protection valve",               labelUz:"Havo tormozi — traktor himoya valfi ishlamaydi yoki yo'q",                  severity:4},
+    {id:"v_393_43B_BATV",    code:"393.43B-BATV",    label:"Air Brake - Towing vehicle unable to actuate trailer brakes manually",      labelUz:"Havo tormozi — tortuvchi avtomobil tirkama tormozlarini qo'lda ishlatib bo'lmaydi", severity:4},
+    {id:"v_393_3A1_ALATR",   code:"393.3A1-ALATR",   label:"Air Brake - Any leak from an air tank reservoir",                          labelUz:"Havo tormozi — havo rezervuaridan oqish",                                  severity:4},
+    {id:"v_393_3A1_ALBV",    code:"393.3A1-ALBV",    label:"Air Brake - Any leak from a brake valve",                                   labelUz:"Havo tormozi — tormoz valfidan oqish",                                     severity:4},
+    {id:"v_393_3A1B",        code:"393.3A1B",        label:"Brakes (general) - Explain",                                               labelUz:"Tormozlar (umumiy) — izohlash",                                             severity:4},
+    {id:"v_393_3A1_BALR",    code:"393.3A1-BALR",    label:"Air Brake - Fails air loss rate test",                                     labelUz:"Havo tormozi — havo yo'qotish tezligi sinovidan o'ta olmadi",              severity:4},
+    {id:"v_393_3A1_BARS",    code:"393.3A1-BARS",    label:"Air Brake - Air reservoir separated/moving more than 1 inch",              labelUz:"Havo tormozi — havo rezervuari asl joyidan 1 inchdan ko'proq siljigan",   severity:4},
+    {id:"v_393_3A1BL",       code:"393.3A1BL",       label:"Brake system pressure loss",                                               labelUz:"Tormoz tizimida bosim yo'qolishi",                                          severity:4},
+    {id:"v_393_3A1_BALAC",   code:"393.3A1-BALAC",   label:"Brake - Audible air leak from a brake chamber",                           labelUz:"Tormoz kamerasidan eshitiladigan havo oqishi",                              severity:4},
+    // Tires
+    {id:"v_393_75a",         code:"393.75(a)",       label:"Flat tire or fabric exposed",                                              labelUz:"Flat shina yoki mato ko'rinib turibdi",                                     severity:8},
+    {id:"v_393_75a_FT",      code:"393.75A-FT",      label:"Tire - Flat or fabric exposed (any tire)",                                 labelUz:"Shina — flat yoki mato ko'rinib turibdi (istalgan shina)",                 severity:8},
+    {id:"v_393_75_TREAD",    code:"393.75(b)",       label:"Tire tread depth insufficient (steering axle)",                            labelUz:"Shina yurish naqshi chuqurligi yetarli emas (yo'naltiruvchi o'q)",         severity:8},
+    {id:"v_393_75b_NSTD",    code:"393.75B-NSTD",    label:"Tire - No tread depth on steering tire",                                  labelUz:"Shina — yo'naltiruvchi shinada yurish naqshi yo'q",                        severity:8},
+    {id:"v_393_75c_NSTD",    code:"393.75C-NSTD",    label:"Tire - No tread depth on non-steering tire",                              labelUz:"Shina — yo'naltiruvchi bo'lmagan shinada yurish naqshi yo'q",              severity:6},
+    // Lights
+    {id:"v_393_9a_HLNW",     code:"393.9A-HLNW",     label:"Headlamp - Not working (required lamp)",                                  labelUz:"Faralar — ishlamayapti (talab etilgan chiroq)",                            severity:3},
+    {id:"v_393_9b_SLNW",     code:"393.9B-SLNW",     label:"Stop lamp not working",                                                   labelUz:"Stop chiroq ishlamayapti",                                                 severity:2},
+    {id:"v_393_11a_TRLNW",   code:"393.11A-TRLNW",   label:"Turn signal lamp not working",                                            labelUz:"Yo'nalish ko'rsatkich chiroq ishlamayapti",                                 severity:2},
+    // Steering
+    {id:"v_393_209a_STDEF",  code:"393.209(a)",      label:"Steering system defective",                                               labelUz:"Rul tizimi nosoz",                                                          severity:8},
+    // Load securement
+    {id:"v_393_100_LS",      code:"393.100",         label:"Cargo not adequately secured",                                            labelUz:"Yuk yetarlicha mahkamlanmagan",                                             severity:6},
+    {id:"v_393_102_LS",      code:"393.102",         label:"Cargo securement device insufficient",                                    labelUz:"Yukni mahkamlash qurilmasi yetarli emas",                                  severity:6},
+    {id:"v_393_118_WD",      code:"393.118",         label:"Working load limit violation - tie-down",                                 labelUz:"Bog'lab mahkamlash uchun yuklanish chegarasi buzilishi",                    severity:6},
+    // Coupling
+    {id:"v_393_71a_CPL",     code:"393.71(a)",       label:"Fifth wheel or kingpin coupling defective",                               labelUz:"Beshinchi g'ildirak yoki kingpin ulanishi nosoz",                           severity:5},
+    // Fuel / other
+    {id:"v_393_67h_FSLK",    code:"393.67(h)",       label:"Fuel tank leaking",                                                       labelUz:"Yonilg'i baki oqmoqda",                                                    severity:7},
+    {id:"v_393_83g_EXH",     code:"393.83G-ELDC",    label:"Exhaust leak forward of/below driver compartment",                        labelUz:"Haydovchi bo'limi oldida yoki ostida chiqindi gaz oqishi",                 severity:1},
+    {id:"v_393_201a_FRM",    code:"393.201(a)",      label:"Frame cracked, broken or sagging",                                        labelUz:"Rama yorilgan, singan yoki egilgan",                                        severity:7},
+    {id:"v_393_207a_SUS",    code:"393.207(a)",      label:"Suspension - leaf spring cracked/broken/missing",                         labelUz:"Muallaq — yaproqli prujina yorilgan/singan/yo'q",                          severity:6},
+    {id:"v_393_83_WPR",      code:"393.83",          label:"Windshield wiper defective",                                              labelUz:"Shisha tozalagich nosoz",                                                   severity:2},
+    {id:"v_392_7a_PRETRIP",  code:"392.7A-D",        label:"Driver - Failed to conduct pre-trip inspection",                         labelUz:"Haydovchi — yo'lga chiqishdan oldingi tekshiruvni o'tkazmagan",            severity:4},
+    {id:"v_396_17c_NOPI",    code:"396.17(c)",       label:"Operating CMV without proof of periodic inspection",                      labelUz:"Davriy tekshiruv hujjatisiz CMV boshqarish",                               severity:4},
+    {id:"v_396_9d2_FTF",     code:"396.9D2-FTF",     label:"Failing to correct defects noted on roadside inspection report",          labelUz:"Yo'l tekshiruvi hisobotidagi nuqsonlarni bartaraf etmaslik",               severity:4},
+    {id:"v_396_5a_LUB",      code:"396.5(a)",        label:"Failing to ensure vehicle is properly lubricated",                       labelUz:"Transport vositasini to'g'ri yog'lashni ta'minlaslik",                     severity:3},
+    {id:"v_393_207a_UTJB",   code:"393.207A-UTJB",   label:"Universal joint broken/cracked/missing U-bolt",                         labelUz:"Kardanli val — uchi mahkamlagichi bo'sh/singan/yo'q",                      severity:7},
+    {id:"v_396_3a1_OAL",     code:"396.3A1-OAL",     label:"Other - Any air leak not attributed to brake or suspension system",      labelUz:"Boshqa — tormoz yoki muallaq tizimiga tegishli bo'lmagan havo oqishi",    severity:4},
+    // Emergency Equipment
+    {id:"v_392_2slsnc",      code:"392.2SLSNC",      label:"State/Local Laws - CMV snow chains required",                              labelUz:"Shtat/Mahalliy qonunlar — CMV qor zanjirlari talab etiladi",               severity:2},
+    {id:"v_393_95a_fext",    code:"393.95(a)",        label:"No/discharged/unsecured fire extinguisher",                                labelUz:"O't o'chiruvchi yo'q / bo'shatilgan / mahkamlanmagan",                      severity:2},
+    {id:"v_393_95a1_fext",   code:"393.95A1",         label:"Emergency Equipment - Fire Extinguishers - no fire extinguisher or not properly rated", labelUz:"Favqulodda — O't o'chiruvchi yo'q yoki talab etilgan darajada emas", severity:2},
+    {id:"v_393_95a4_eeus",   code:"393.95A4-EEUS",    label:"Emergency Equipment - Fire Extinguishers - unsecured",                     labelUz:"Favqulodda — O't o'chiruvchi mahkamlanmagan",                              severity:2},
+    {id:"v_393_95f_svw",     code:"393.95(f)",        label:"Emergency Equipment - Stopped vehicle warning devices missing or improper", labelUz:"Favqulodda — To'xtatilgan avtomobil ogohlantirish qurilmalari yo'q",       severity:2},
+    {id:"v_393_95ee",        code:"393.95-EE",        label:"Emergency Equipment - Stopped Vehicle warning devices missing or improper (EE)", labelUz:"Favqulodda — To'xtatilgan avtomobil ogohlantirish qurilmalari yo'q (EE)", severity:2},
+    // General Securement
+    {id:"v_392_9a2c",        code:"392.9A2-C",        label:"Vehicle components or dunnage not secured",                                labelUz:"Avtomobil komponentlari yoki destaklar mahkamlanmagan",                     severity:1},
+    {id:"v_392_9a3",         code:"392.9(a)(3)",      label:"Drivers view and/or movement is obstructed",                               labelUz:"Haydovchi ko'rish maydoni va/yoki harakati to'sib qo'yilgan",               severity:1},
+    {id:"v_393_100cc",       code:"393.100C-C",       label:"Cargo - Cargo not secured against shifting",                               labelUz:"Yuk — yuk siljishdan mahkamlanmagan",                                       severity:1},
+    // Clearance / ID Lamps
+    {id:"v_393_9_irol",      code:"393.9",            label:"Inoperable Required Lamp",                                                  labelUz:"Talab etilgan chiroq ishlamaydi",                                           severity:2},
+    {id:"v_393_11a1_lsml",   code:"393.11A1-LSML",    label:"Lighting - Side marker lamp(s) missing",                                   labelUz:"Yoritish — Yon marker chiroq(lari) yo'q",                                  severity:2},
+    {id:"v_393_23_leu",      code:"393.23-LEU",        label:"Lighting - All electrical systems on towed vehicle(s) inoperative",        labelUz:"Yoritish — Tortilayotgan avtomobil elektr sistemasi ishlamaydi",           severity:2},
+    {id:"v_393_9a_lcl",      code:"393.9A-LCL",       label:"Lighting - Clearance lamp(s) inoperative",                                 labelUz:"Yoritish — Gabarit chiroq(lari) ishlamaydi",                               severity:2},
+    {id:"v_393_9a_lil",      code:"393.9A-LIL",       label:"Lighting - Identification lamp(s) inoperative",                            labelUz:"Yoritish — Identifikatsiya chiroq(lari) ishlamaydi",                       severity:2},
+    {id:"v_393_9a_llpl",     code:"393.9A-LLPL",      label:"Lighting - License plate lamp inoperative",                                labelUz:"Yoritish — Davlat raqami chiroqi ishlamaydi",                              severity:2},
+    {id:"v_393_9a_lsml",     code:"393.9A-LSML",      label:"Lighting - Side marker lamp(s) inoperative",                              labelUz:"Yoritish — Yon marker chiroq(lari) ishlamaydi",                            severity:2},
+    // Lighting (severity 6)
+    {id:"v_393_19_hwl",      code:"393.19",           label:"Inoperative/Defective Hazard Warning Lamp",                                labelUz:"Xavf ogohlantiruv chiroqi ishlamaydi yoki nosoz",                          severity:6},
+    {id:"v_393_11a1_lchl",   code:"393.11A1-LCHL",    label:"Lighting - Lamps improper color, height, location",                        labelUz:"Yoritish — Chiroqlar noto'g'ri rang, balandlik, joylashuv",                severity:6},
+    {id:"v_393_11a1_lftsm",  code:"393.11A1-LFTSM",   label:"Lighting - Front - Turn signal - missing",                                 labelUz:"Yoritish — Old — Yo'nalish ko'rsatkich — yo'q",                           severity:6},
+    {id:"v_393_9a_brake",    code:"393.9(a)",         label:"Inoperative Brake Lamps",                                                   labelUz:"Tormoz chiroqlari ishlamaydi",                                             severity:6},
+    {id:"v_393_9a_hllh",     code:"393.9A-HLLH",      label:"Lighting - Headlamp(s) fail to operate on low and high beam",              labelUz:"Yoritish — Faralar uzoq va yaqin yorug'da ishlamaydi",                     severity:6},
+    {id:"v_393_9a_lftsi",    code:"393.9A-LFTSI",     label:"Lighting - Front - Turn signal - inoperative",                             labelUz:"Yoritish — Old — Yo'nalish ko'rsatkich — ishlamaydi",                     severity:6},
+    {id:"v_393_9a_lhli",     code:"393.9A-LHLI",      label:"Lighting - Headlamp(s) - Any inoperative",                                 labelUz:"Yoritish — Faralar — istalgan biri ishlamaydi",                            severity:6},
+    {id:"v_393_9a_lrli",     code:"393.9A-LRLI",      label:"Lighting - Tail lamp - Any inoperative",                                   labelUz:"Yoritish — Orqa chiroq — istalgan biri ishlamaydi",                        severity:6},
+    {id:"v_393_9a_lsl1",     code:"393.9A-LSL1",      label:"Lighting - Stop lamps - Any inoperative",                                  labelUz:"Yoritish — Stop chiroqlar — istalgan biri ishlamaydi",                     severity:6},
+    {id:"v_393_9a_sliwr",    code:"393.9A-SLIWR",     label:"Lighting - Stop lamps - Both inoperative when required to be on",           labelUz:"Yoritish — Stop chiroqlar — har ikkalasi ham yonishi kerak paytda ishlamaydi", severity:6},
+    {id:"v_393_9a_ltsi",     code:"393.9A-LTSI",      label:"Lighting - Turn signal - Any inoperative on rearmost vehicle",              labelUz:"Yoritish — Yo'nalish ko'rsatkich — eng orqa avtomobilida ishlamaydi",     severity:6},
+    {id:"v_393_9a_ltsir",    code:"393.9A-LTSIR",     label:"Lighting - Turn signal - Any inoperative on non-rearmost unit",             labelUz:"Yoritish — Yo'nalish ko'rsatkich — eng orqadan oldingi birlikda ishlamaydi", severity:6},
+    {id:"v_393_9h_ihl",      code:"393.9H",           label:"Inoperable head lamps",                                                     labelUz:"Faralar ishlamaydi",                                                       severity:6},
+    {id:"v_393_9ts_its",     code:"393.9TS",          label:"Inoperative turn signal",                                                    labelUz:"Yo'nalish ko'rsatkich ishlamaydi",                                         severity:6},
+    // Cab, Body, Frame
+    {id:"v_393_201a_frbfc",  code:"393.201A-FRBFC",   label:"Frame - Cracked siderail bottom flange at least 1 inch long",              labelUz:"Rama — Yon qovurg'a pastki flansi 1 inchdan ortiq yorilgan",               severity:2},
+    {id:"v_393_201a_frmc",   code:"393.201A-FRMC",    label:"Frame - Cracked/loose/broken frame member affecting support of functional components", labelUz:"Rama — Vazifaviy komponentlar tayanchi ta'sir qiluvchi qovurg'a yorilgan/bo'sh/singan", severity:2},
+    {id:"v_393_201a_frsc",   code:"393.201A-FRSC",    label:"Frame - Cracked siderail web around radius into bottom flange",             labelUz:"Rama — Yon qovurg'a tarmoq pastki flansga kirish radiusi atrofida yorilgan", severity:2},
+    {id:"v_393_203b_cbp",    code:"393.203B-CBP",     label:"Cab and Body Parts - Cab/body mounts loose/broken/missing",                 labelUz:"Kabina va Kuzov — Kabina/kuzov kreplari bo'sh/singan/yo'q",                severity:2},
+    {id:"v_393_203e_cbmp",   code:"393.203(e)",       label:"Cab front bumper missing/unsecured/protrude",                               labelUz:"Kabina old bufer yo'q/mahkamlanmagan/chiqib turgan",                       severity:2},
+    // Suspension (new detailed codes)
+    {id:"v_393_207a_sappas", code:"393.207A-SAPPAS",  label:"Suspension - Axle positioning part cracked/broken/loose/missing resulting in axle shift", labelUz:"Muallaq — O'q joylashish qismi yorilgan/singan/bo'sh/yo'q, o'q siljishiga olib kelmoqda", severity:7},
+    {id:"v_393_207a_sappcb", code:"393.207A-SAPPCBLM",label:"Suspension - Axle positioning part cracked/broken/loose/missing",           labelUz:"Muallaq — O'q joylashish qismi yorilgan/singan/bo'sh/yo'q",               severity:7},
+    {id:"v_393_207a_stb",    code:"393.207A-STB",     label:"Suspension - Connecting rod/tracking component assembly missing rubber bushing or worn to move by hand", labelUz:"Muallaq — Ulagich qism rezina vtulkasi yo'q yoki qo'l bilan siljiydi", severity:7},
+    {id:"v_393_207b_aalp",   code:"393.207(b)",       label:"Adjustable axle locking pins missing or not engaged",                       labelUz:"Sozlanadigan o'q bloklash pinlari yo'q yoki faollashtirilmagan",           severity:7},
+    {id:"v_393_207b_aalme",  code:"393.207B-AALME",   label:"Any of the locking pins are missing or not engaged",                        labelUz:"Bloklash pinlaridan istalgan biri yo'q yoki faollashtirilmagan",           severity:7},
+    {id:"v_393_207b_aalmeo", code:"393.207B-AALME-OO",label:"More than 25% of the locking pins are missing or not engaged",              labelUz:"Bloklash pinlarining 25%dan ko'pi yo'q yoki faollashtirilmagan",           severity:7},
+    {id:"v_393_207f_gen",    code:"393.207(f)",       label:"Suspension - Any part used for attaching same to vehicle frame/axle is cracked/loose/broken/missing", labelUz:"Muallaq — Qismlar ramaga/o'qqa biriktirish uchun yorilgan/bo'sh/singan/yo'q", severity:7},
+    {id:"v_393_207f_sasmd",  code:"393.207F-SASMD",   label:"Suspension - Air spring/bag is missing or detached at top or bottom",       labelUz:"Muallaq — Havo prujinasi/yostiqchasi yo'q yoki yuqori/pastdan ajralib ketgan", severity:7},
+    {id:"v_393_207f_sdas",   code:"393.207F-SDAS",    label:"Suspension - Deflated air suspension",                                      labelUz:"Muallaq — Havo muallaq tizimi bo'shatilgan",                               severity:7},
+    {id:"v_393_207f_slas",   code:"393.207F-SLAS",    label:"Suspension - Leaking 3 PSI in 5 minutes",                                   labelUz:"Muallaq — 5 daqiqada 3 PSI oqmoqda",                                      severity:7},
+    // Steering (additional)
+    {id:"v_393_209d_stbsm",  code:"393.209D-STBSM",  label:"Steering - Ball and socket joint has movement under load of stud nut",      labelUz:"Rul — Sharsimon biriktirma stud gaykasi yuki ostida harakat qiladi",      severity:6},
+    {id:"v_393_209e_spsla",  code:"393.209E-SPSLA",  label:"Steering - Power steering leaking anywhere",                                 labelUz:"Rul kuchaytirgichi istalgan joydan oqmoqda",                               severity:6},
+    {id:"v_393_209e_spsrlf", code:"393.209E-SPSRLF", label:"Steering - Power steering reservoir low fluid",                              labelUz:"Rul kuchaytirgichi rezervuarida suyuqlik kam",                             severity:6},
+    {id:"v_396_3a1_stlc",    code:"396.3A1-STLC",    label:"Steering - Loose clamp or clamp bolt on tie rod or drag link",               labelUz:"Rul — Tutash shtanga yoki sur'at richagida bo'sh qisqich/bolt",            severity:6},
+    // Other Vehicle Defect (additional)
+    {id:"v_393_28_ws6",      code:"393.28-WS-6",      label:"Wiring Systems - Bare, loose, dangling, chafing or poorly connected wires", labelUz:"Sxema tizimi — Yalang'och, bo'sh, osilib turgan, sürtülgan yoki yomon ulanган simlar", severity:3},
+    {id:"v_393_3_batt",      code:"393.3",            label:"Improper battery installation",                                              labelUz:"Akkumulyator noto'g'ri o'rnatilgan",                                       severity:3},
+    {id:"v_393_30b_battp",   code:"393.30-B",         label:"Battery - Not protected",                                                    labelUz:"Akkumulyator — himoyalanmagan",                                            severity:3},
+    {id:"v_396_3a1_dldsef",  code:"396.3A1-DLDSEF",  label:"Driveline/Driveshaft - Any loose, broken or missing end fitting fastener",   labelUz:"Uzatish shafti — istalgan bo'sh/singan/yo'q uchi birlagich mahkamlash qismi", severity:3},
+    {id:"v_396_3a1_f",       code:"396.3A1-F",        label:"Fuel - dripping leak",                                                       labelUz:"Yoqilg'i — tomchilab oqmoqda",                                            severity:3},
+    {id:"v_396_3a1_lleak",   code:"396.3A1-LLEAK",    label:"A liquid fuel system with a dripping leak at any point",                    labelUz:"Suyuq yoqilg'i tizimida istalgan nuqtada tomchilab oqish mavjud",          severity:3},
+    {id:"v_397_67c7v_f",     code:"397.67C7V-F",      label:"Fuel - Missing/improper filler cap",                                        labelUz:"Yoqilg'i — qopqoq yo'q/noto'g'ri",                                        severity:1},
+    {id:"v_396_5b_ogl",      code:"396.5(b)",         label:"Oil and/or grease leak",                                                     labelUz:"Yog' va/yoki moy oqmoqda",                                                severity:3},
+    {id:"v_396_5b_l",        code:"396.5B-L",         label:"Lubrication - Oil or grease leak",                                          labelUz:"Moylash — Yog' yoki moy oqmoqda",                                         severity:3},
+    // Reflective Sheeting
+    {id:"v_393_11_rfl",      code:"393.11",           label:"No or defective lighting devices or reflective material as required",        labelUz:"Talab etilgan yoritish qurilmasi yoki reflektiv material yo'q/nosoz",       severity:3},
+    {id:"v_393_11a1_csurr",  code:"393.11A1-CSURR",   label:"Conspicuity Systems - Truck tractor upper rear reflective sheeting missing (on/after July 1, 1997)", labelUz:"Ayon tizimi — Trak-traktor yuqori orqa reflektiv qoplama yo'q (1997 yil 1 iyuldan keyin)", severity:3},
+    {id:"v_393_11a1_lrr",    code:"393.11A1-LRR",     label:"Lighting - Reflex reflector(s) missing or improper",                        labelUz:"Yoritish — Reflektor(lar) yo'q yoki noto'g'ri",                            severity:3},
+    {id:"v_393_11a1_cslrr",  code:"393.11A1-CSLRR",   label:"Conspicuity Systems - Truck tractor lower rear retro reflective sheeting missing (on/after July 1, 1997)", labelUz:"Ayon tizimi — Trak-traktor quyi orqa retro reflektiv qoplama yo'q (1997 yil 1 iyuldan keyin)", severity:3},
+    {id:"v_393_11b_cslrr",   code:"393.11B-CSLRR",    label:"Conspicuity Systems - Trailers lower rear retro reflective sheeting inadequate (manufactured on/before Dec 1, 1993)", labelUz:"Ayon tizimi — Tirkama quyi orqa retro reflektiv qoplama yetarli emas (1993 1 dekabrgacha)", severity:3},
+    {id:"v_393_11b_csrigrr", code:"393.11B-CSRIGRR",  label:"Conspicuity Systems - Trailers rear impact guard retro reflective sheeting inadequate (on/after Dec 1, 1993)", labelUz:"Ayon tizimi — Tirkama orqa ta'sir to'sig'i retro reflektiv qoplama yetarli emas", severity:3},
+    {id:"v_393_11b_csurr",   code:"393.11B-CSURR",    label:"Conspicuity Systems - Trailers upper rear retro reflective sheeting inadequate (on/after Dec 1, 1993)", labelUz:"Ayon tizimi — Tirkama yuqori orqa retro reflektiv qoplama yetarli emas", severity:3},
+    {id:"v_393_11tl",        code:"393.11TL",          label:"Truck-Tractor lower rear mud flaps retroreflective material requirements (manufactured after July 1997)", labelUz:"Trak-traktor quyi orqa loy qoplami retro reflektiv material talablari", severity:3},
+    {id:"v_393_11tu",        code:"393.11TU",          label:"Truck-Tractor upper body corner retroreflective requirements (manufactured after July 1997)", labelUz:"Trak-traktor yuqori kuzov burchagi retro reflektiv talablari",          severity:3},
+    {id:"v_393_13c2_cslrr",  code:"393.13C2-CSLRR",   label:"Conspicuity Systems - Trailers lower rear retro reflective sheeting inadequate (manufactured before Dec 1, 1993)", labelUz:"Ayon tizimi — Tirkama quyi orqa retro reflektiv qoplama yetarli emas (1993 1 dekabrgacha)", severity:3},
+    {id:"v_393_86a1_rig",    code:"393.86A1-RIG",      label:"Rear Impact Guards - Tractors/semitrailers manufactured on/after January 26, 1998 - inadequate or missing", labelUz:"Orqa ta'sir to'siqlari — 1998 26 yanvardan keyin ishlab chiqarilgan traktorlar/tirkamalar — yetarli emas yoki yo'q", severity:2},
+    {id:"v_393_86b1_rig",    code:"393.86B1-RIG",      label:"Rear Impact Guards - All other CMVs manufactured after December 31, 1952 - inadequate or missing", labelUz:"Orqa ta'sir to'siqlari — 1952 31 dekabrdan keyin ishlab chiqarilgan boshqa CMVlar — yetarli emas yoki yo'q", severity:2},
+    // Wheels, Studs, Clamps, Etc.
+    {id:"v_393_205a_wrc",    code:"393.205(a)",        label:"Wheel/Rim cracked or broken",                                               labelUz:"G'ildirak/Disk yorilgan yoki singan",                                      severity:2},
+    {id:"v_393_205a_wrbh",   code:"393.205A-WRBH",     label:"Wheel/Rim - Cracks between two holes",                                     labelUz:"G'ildirak/Disk — ikki teshik orasida yoriq",                               severity:2},
+    {id:"v_393_205a_wrdc",   code:"393.205A-WRDC",     label:"Wheel/Rim - Disc wheel cracked more than 3 inches",                        labelUz:"G'ildirak/Disk — disk g'ildiragi 3 inchdan ko'proq yorilgan",              severity:2},
+    {id:"v_393_205c_wfl",    code:"393.205(c)",        label:"Wheel fasteners loose and/or missing",                                      labelUz:"G'ildirak mahkamlagichlari bo'sh va/yoki yo'q",                            severity:2},
+    {id:"v_393_205c_wr",     code:"393.205C-WR",       label:"Wheel/Rim - Wheel fasteners loose/missing/ineffective/broken",              labelUz:"G'ildirak/Disk — mahkamlagichlar bo'sh/yo'q/samarasiz/singan",            severity:2},
+    {id:"v_393_205c_wrawf",  code:"393.205C-WRAWFLMIB",label:"Wheel/Rim - Any wheel fasteners loose/missing/ineffective/broken",          labelUz:"G'ildirak/Disk — istalgan mahkamlagich bo'sh/yo'q/samarasiz/singan",      severity:2},
+    {id:"v_396_3a1_hcm",     code:"396.3A1-HCM",       label:"Hubs - Bearing cap, plug or filler plug missing or broken",                 labelUz:"Vtulkalar — podshipnik qopqog'i, tiqin yoki to'ldirish tiqini yo'q yoki singan", severity:2},
+    {id:"v_396_5a_hnl",      code:"396.5A-HNL",        label:"Hubs - No visible or measurable lubricant showing in the hub",              labelUz:"Vtulkalar — vtulkada ko'rinadigan yoki o'lchanadigan moy yo'q",            severity:2},
+    {id:"v_396_5b_hwsl",     code:"396.5B-HWSL",       label:"Hubs - Wheel seal leaking",                                                 labelUz:"Vtulkalar — g'ildirak muhrlagichi oqmoqda",                               severity:2},
+    {id:"v_396_5b_hwsliw",   code:"396.5B-HWSLIW",     label:"Hubs - Wheel seal leaking - inner wheel",                                   labelUz:"Vtulkalar — ichki g'ildirak muhrlagichi oqmoqda",                         severity:2},
+    // Inspection Reports (additional)
+    {id:"v_396_17c_pi",      code:"396.17C-PI",        label:"Operating a CMV without documentation of a periodic inspection",            labelUz:"Davriy tekshiruv hujjatisiz CMV boshqarish",                              severity:4},
+    {id:"v_396_9d2",         code:"396.9(d)(2)",       label:"Failure to correct defects noted on previous inspection report",            labelUz:"Oldingi tekshiruv hisobotidagi nuqsonlarni bartaraf etmaslik",             severity:4},
+    // Coupling Devices (additional)
+    {id:"v_396_3a1_aasgmd",  code:"396.3A1-AASGMD",   label:"Coupling Devices - More than 25% of slider-guide/hold-down brackets missing or disengaged", labelUz:"Ulash qurilmasi — slayger yo'naltiruvchi/ushlab turuvchi kronshteynlarning 25%dan ko'pi yo'q yoki ajralgan", severity:3},
+    {id:"v_396_3a1_aasgmdl6",code:"396.3A1-AASGMD-L6", label:"Coupling Devices - Any of the slider-guide/hold-down brackets missing or disengaged", labelUz:"Ulash qurilmasi — slayger yo'naltiruvchi/ushlab turuvchi kronshteynlaridan istalgan biri yo'q yoki ajralgan", severity:3},
+    {id:"v_393_70b1i",       code:"393.70B1I",         label:"Defective latching fasteners - Fasteners on either side of vehicle missing or ineffective", labelUz:"Nuqsonli qulf mahkamlagichlari — avtomobil har ikki tomonidagi mahkamlagichlar yo'q yoki samarasiz", severity:3},
+    {id:"v_393_70b1i_cdsli", code:"393.70B1I-CDSLI-MT25", label:"Coupling - Slider latching fasteners - More than 25% ineffective on either side", labelUz:"Ulash — Slayger qulf mahkamlagichlari — har ikki tomonida 25%dan ko'pi samarasiz", severity:3},
+    // Brakes (additional detailed codes)
+    {id:"v_393_45_btub",     code:"393.45",            label:"Brake tubing and hose adequacy",                                            labelUz:"Tormoz trubkalari va shlanglarining yetarliligi",                          severity:4},
+    {id:"v_393_45a_bhtij",   code:"393.45A-BHTIJ",    label:"Air Brake - Improperly joined hose ends (sliding over tubing/clamping)",    labelUz:"Havo tormozi — shlang uchlari noto'g'ri ulangan (trubka ustiga sirg'anib/qisqichlab)", severity:4},
+    {id:"v_393_45b2_chaf",   code:"393.45(b)(2)",     label:"Brake hose chafing and/or kinking",                                         labelUz:"Tormoz shlangining sürtülishi va/yoki bukilishi",                          severity:4},
+    {id:"v_393_45b2_b",      code:"393.45B2-B",       label:"Air brake - Hose/tubing chafing and/or kinking",                            labelUz:"Havo tormozi — shlang/trubka sürtülishi va/yoki bukilishi",               severity:4},
+    {id:"v_393_45b2_bair",   code:"393.45B2-B-AIR",   label:"Air Brake - Hose/tubing damaged or not secured",                            labelUz:"Havo tormozi — shlang/trubka shikastlangan yoki mahkamlanmagan",          severity:4},
+    {id:"v_393_45b2_bhtd",   code:"393.45B2-BHTD",    label:"Air Brake - Hose/tubing damage into the outer reinforcement ply",           labelUz:"Havo tormozi — shlang/trubka tashqi mustahkamlash qatlamiga zarar ko'rgan", severity:4},
+    {id:"v_393_45b2_bvac",   code:"393.45B2-B-VAC",   label:"Brake - Vacuum hose restricted/abraded/chafed through outer cover-to-cord ply", labelUz:"Tormoz — vakuum shlang qisqartirilgan/abraded/tashqi qoplamadan simga sürtülgan", severity:4},
+    {id:"v_393_45b2_pc",     code:"393.45B2PC",        label:"Brake Hose Chafing - Connection to Power Unit",                             labelUz:"Tormoz shlang sürtülishi — Quvvat birligiga ulanish",                     severity:4},
+    {id:"v_393_45b2_uv",     code:"393.45B2UV",        label:"Brake Hose Chafing Under Vehicle",                                          labelUz:"Tormoz shlang sürtülishi — Avtomobil ostida",                             severity:4},
+    {id:"v_393_45d_blk",     code:"393.45(d)",         label:"Brake connections with leaks or constrictions",                             labelUz:"Tormoz ulanishlarida oqish yoki qisqartirish",                             severity:4},
+    {id:"v_393_45d_b",       code:"393.45D-B",         label:"Air Brake - Audible air leak at a proper connection",                       labelUz:"Havo tormozi — to'g'ri ulanishda eshitiladigan havo oqishi",               severity:4},
+    {id:"v_393_45d_baal",    code:"393.45D-BAAL",      label:"Air Brake - Audible air leak at other than a proper connection",            labelUz:"Havo tormozi — noto'g'ri ulanishda eshitiladigan havo oqishi",            severity:4},
+    {id:"v_393_45d_bhtc",    code:"393.45D-BHTC",      label:"Air Brake - Damaged by heat/broken/crimped restricting air flow",           labelUz:"Havo tormozi — issiqlik/sinish/qisish tufayli havo oqimi cheklangan",    severity:4},
+    {id:"v_393_47a_blc",     code:"393.47(a)",         label:"Inadequate brakes for safe stopping - Brake Lining condition",              labelUz:"Xavfsiz to'xtatish uchun tormozlar yetarli emas — Tormoz qistirmasi holati", severity:4},
+    {id:"v_393_47a_bcfsad",  code:"393.47A-BCFSAD",   label:"Air Disc Brake - Contaminated friction surface",                             labelUz:"Havo disk tormozi — Sürtünma yuzasi ifloslangan",                        severity:4},
+    {id:"v_393_47a_bcfsadsa",code:"393.47A-BCFSAD-SA", label:"Air Disc Brake - Contaminated friction surface on a steering axle",         labelUz:"Havo disk tormozi — Rul o'qidagi sürtünma yuzasi ifloslangan",           severity:4},
+    {id:"v_393_47a_bcfsbd",  code:"393.47A-BCFSBD",   label:"Drum Brake - Contaminated friction surface",                                 labelUz:"Baraban tormozi — Sürtünma yuzasi ifloslangan",                           severity:4},
+    {id:"v_393_47a_bclmbd",  code:"393.47A-BCLMBD",   label:"Drum Brake - Cracked/loose/missing lining/pad",                             labelUz:"Baraban tormozi — Qistirma/prokladka yorilgan/bo'sh/yo'q",               severity:4},
+    {id:"v_393_47a_brc",     code:"393.47A-BRC",       label:"Brake - Rotor (disc) with crack in length more than 75% of friction surface", labelUz:"Tormoz — Rotor (disk) sürtünma yuzasining 75%dan ko'pini qamrab oladigan yoriq", severity:4},
+    {id:"v_393_47b_bmbcbd",  code:"393.47B-BMBCBD",   label:"Brakes - Mismatched brake chamber sizes on same axle other than steering axle", labelUz:"Tormozlar — Rul o'qi bo'lmagan bir o'qdagi tormoz kameralari o'lchami mos emas", severity:4},
+    {id:"v_393_47d_blt",     code:"393.47(d)",         label:"All Brakes - Insufficient brake lining thickness",                           labelUz:"Barcha tormozlar — Tormoz qistirmasi qalinligi yetarli emas",             severity:4},
+    {id:"v_393_47d1_brmmc",  code:"393.47D1-BRMMCAD-S",label:"Air Disc Brake - Rotor (disc) metal to metal contact on a steering axle",  labelUz:"Havo disk tormozi — Rul o'qida rotor (disk) metal-metalga teginish",      severity:4},
+    {id:"v_393_47d2_blt16",  code:"393.47D2-BLT-1/16AD",label:"Air Disc Brake - Lining/pad thickness less than 1/16 inch",               labelUz:"Havo disk tormozi — Qistirma/prokladka qalinligi 1/16 inchdan kam",      severity:4},
+    {id:"v_393_47d2_bltbd",  code:"393.47D2-BLTBD",   label:"Drum Brake - Inadequate lining/pad thickness",                               labelUz:"Baraban tormozi — Qistirma/prokladka qalinligi yetarli emas",            severity:4},
+    {id:"v_393_47e_boa",     code:"393.47(e)",         label:"Brake Out of Adjustment - Roto, Clamp (Short & Long), DD-3, or Bolt",       labelUz:"Tormoz sozlanmagan — Roto, Qisqich (Qisqa va Uzun), DD-3 yoki Bolt",     severity:4},
+    {id:"v_393_48a_idb",     code:"393.48(a)",         label:"Inoperative/defective brakes",                                               labelUz:"Ishlamaydigan/nosoz tormozlar",                                           severity:4},
+    {id:"v_393_48a_biad",    code:"393.48A-BIAD",      label:"Air Disc Brake - Inoperative other than a steering axle",                    labelUz:"Havo disk tormozi — Rul o'qi bo'lmagan joyda ishlamaydi",                severity:4},
+    {id:"v_393_48a_bibd",    code:"393.48A-BIBD",      label:"Drum Brake - Inoperative other than a steering axle",                        labelUz:"Baraban tormozi — Rul o'qi bo'lmagan joyda ishlamaydi",                  severity:4},
+    {id:"v_393_48a_bihe",    code:"393.48A-BIHE",      label:"Hydraulic/Electric Brake - Inoperative other than a steering axle",          labelUz:"Gidravlik/Elektr tormoz — Rul o'qi bo'lmagan joyda ishlamaydi",          severity:4},
+    {id:"v_393_48a_bisa",    code:"393.48A-BI-SA",     label:"Brake - Inoperative on a steering axle",                                     labelUz:"Tormoz — Rul o'qida ishlamaydi",                                          severity:4},
+    {id:"v_393_48a_blmacbd", code:"393.48A-BLMACBD",  label:"Drum Brake - Loose chamber/spider/camshaft support bracket",                  labelUz:"Baraban tormozi — Bo'sh kamera/pauker/kumshaft tayanch kronshteyn",       severity:4},
+    {id:"v_393_48a_bmbcbd2", code:"393.48A-BMBCBD",   label:"Drum Brake - Missing/broken component(s)",                                    labelUz:"Baraban tormozi — komponent(lar) yo'q/singan",                           severity:4},
+    {id:"v_393_51_bwdpg",    code:"393.51",            label:"No or defective brake warning device or pressure gauge",                     labelUz:"Tormoz ogohlantirish qurilmasi yoki bosim o'lchagichi yo'q/nosoz",        severity:4},
+    {id:"v_393_51c_bnvlawd", code:"393.51C-BNVLAWD",  label:"Air Brake - No visual low air warning device manufactured on or after 1975",  labelUz:"Havo tormozi — 1975 yildan keyin ishlab chiqarilgan vizual past havo ogohlantirish qurilmasi yo'q", severity:4},
+    {id:"v_393_53b_abs",     code:"393.53(b)",         label:"Automatic airbrake adjustment system fails to compensate for wear (after 10/19/94)", labelUz:"Avtomatik havo tormozi sozlash tizimi 10/19/94 dan keyin eskirishni qoplashda muvaffaqiyatsiz", severity:4},
+    {id:"v_393_53b_b",       code:"393.53B-B",         label:"Air Brake - CMV automatic airbrake adjustment system fails (after 10/20/1994)", labelUz:"Havo tormozi — CMV avtomatik tormoz sozlash tizimi 10/20/1994 dan keyin muvaffaqiyatsiz", severity:4},
+    {id:"v_393_55a_b",       code:"393.55A-B",         label:"Hydraulic Brake - ABS defective on truck/bus (on/after March 1, 1999)",      labelUz:"Gidravlik tormoz — Yuk/avtobus ABS nosoz (1999 1 martdan keyin)",       severity:4},
+    {id:"v_393_55c1_nabs",   code:"393.55(c)(1)",      label:"Truck Tractor manufactured on/after March 1, 1997 not equipped with antilock brake system", labelUz:"1997 1 martdan keyin ishlab chiqarilgan traktor ABS bilan jihozlanmagan", severity:4},
+    {id:"v_393_55c1_b",      code:"393.55C1-B",        label:"Air Brake - Truck-tractor (on/after March 1, 1997) not equipped with ABS",   labelUz:"Havo tormozi — Traktor (1997 1 martdan keyin) ABS bilan jihozlanmagan", severity:4},
+    {id:"v_393_55c2_b",      code:"393.55C2-B",        label:"Air Brake - CMV other than truck-tractor (on/after March 1, 1998) not equipped with ABS", labelUz:"Havo tormozi — Traktorsiz CMV (1998 1 martdan keyin) ABS bilan jihozlanmagan", severity:4},
+    {id:"v_393_55d1_b",      code:"393.55D1-B",        label:"Air Brake - ABS malfunction lamp defective on truck-tractor (on/after March 1, 1997)", labelUz:"Havo tormozi — Traktor ABS nosozlik chirog'i nosoz (1997 1 martdan keyin)", severity:4},
+    {id:"v_393_55d2_cmv",    code:"393.55D(2)",        label:"CMV manufactured on/after 3/1/2001 not equipped with ABS malfunction circuit/lamp from towed vehicle", labelUz:"3/1/2001 dan keyin ishlab chiqarilgan CMV tirkamadan ABS nosozlik signali sxemasi/chirog'i bilan jihozlanmagan", severity:4},
+    {id:"v_393_55d2_b",      code:"393.55D2-B",        label:"Air Brake - ABS malfunction lamp defective on truck-tractor for towed vehicle (on/after March 1, 2001)", labelUz:"Havo tormozi — Tirkama uchun traktor ABS nosozlik chirog'i nosoz (2001 1 martdan keyin)", severity:4},
+    {id:"v_393_55d3_nabs",   code:"393.55D(3)",        label:"No or Defective ABS Malfunction Indicator for towed vehicles (manufactured after February 2001)", labelUz:"2001 fevraldan keyin ishlab chiqarilgan tirkama uchun ABS nosozlik ko'rsatkichi yo'q yoki nosoz", severity:4},
+    {id:"v_393_55d3_b",      code:"393.55D3-B",        label:"Air Brake - ABS malfunction, trailers (after March 1, 2001) unable to transmit ABS malfunction signal to towing vehicle", labelUz:"Havo tormozi — Tirkama (2001 1 martdan keyin) ABS nosozlik signalini tortuvchi avtomobilga uzata olmaydi", severity:4},
+    {id:"v_393_55e_nabs",    code:"393.55(e)",         label:"No or Defective ABS Malfunction Indicator Lamp for trailer (after 03/01/1998)", labelUz:"1998 03/01 dan keyin ishlab chiqarilgan tirkama uchun ABS nosozlik ko'rsatkich chiroqi yo'q yoki nosoz", severity:4},
+    {id:"v_393_55e_b",       code:"393.55E-B",         label:"Air Brake - ABS malfunction lamp defective on trailers (on/after March 1, 1998)", labelUz:"Havo tormozi — Tirkama ABS nosozlik chirog'i nosoz (1998 1 martdan keyin)", severity:4},
+    // 396.x Brake codes (maintenance regulation)
+    {id:"v_396_3a1_alatr",   code:"396.3A1-ALATR",    label:"Air Brake - Any leak from an air tank reservoir (396)",                     labelUz:"Havo tormozi — Havo rezervuaridan istalgan oqish (396)",                  severity:4},
+    {id:"v_396_3a1_albv",    code:"396.3A1-ALBV",      label:"Air Brake - Any leak from a brake valve (396)",                             labelUz:"Havo tormozi — Tormoz valfidan istalgan oqish (396)",                     severity:4},
+    {id:"v_396_3a1b",        code:"396.3A1B",          label:"Brakes (general) - Explain (396)",                                           labelUz:"Tormozlar (umumiy) — Izohlash (396)",                                     severity:4},
+    {id:"v_396_3a1_balac",   code:"396.3A1-BALAC",     label:"Brake - Audible air leak from a brake chamber (396)",                       labelUz:"Tormoz — Tormoz kamerasidan eshitiladigan havo oqishi (396)",             severity:4},
+    {id:"v_396_3a1_balr",    code:"396.3A1-BALR",      label:"Air Brake - Fails air loss rate test (396)",                                 labelUz:"Havo tormozi — Havo yo'qotish tezligi sinovidan o'ta olmadi (396)",      severity:4},
+    {id:"v_396_3a1_bars",    code:"396.3A1-BARS",      label:"Air Brake - Air reservoir separated from original attachment points (396)",  labelUz:"Havo tormozi — Havo rezervuari asl biriktirish joyidan ajralgan (396)",  severity:4},
+    {id:"v_396_3a1_bl",      code:"396.3A1BL",         label:"Brake system pressure loss (396)",                                           labelUz:"Tormoz tizimida bosim yo'qolishi (396)",                                  severity:4},
+    {id:"v_396_3a1_bos",     code:"396.3(a)(1)BOS",    label:"Brake Out of Service - Defective brake(s) ≥20% of service brakes",         labelUz:"Tormoz xizmatdan chiqdi — Nosoz tormoz(lar) xizmat tormozlarining 20%dan ko'pi", severity:0},
+    // Windshield/Glass/Markings
+    {id:"v_393_60c_wddc",    code:"393.60(c)",         label:"Windshield - Damaged or Discolored",                                         labelUz:"Shisha — Shikastlangan yoki rang o'zgargan",                              severity:1},
+    {id:"v_393_60e_wobs",    code:"393.60E",           label:"Windshield - Obstructed",                                                    labelUz:"Shisha — To'sib qo'yilgan",                                               severity:1},
+    {id:"v_393_60ews",       code:"393.60EWS",         label:"Windshield - Obstructed (EWS)",                                             labelUz:"Shisha — To'sib qo'yilgan (EWS)",                                         severity:1},
+    {id:"v_393_78a_ws",      code:"393.78A-WS",        label:"Washers - Inoperative washing system",                                       labelUz:"Yuvuvchi qurilma — Yuvish tizimi ishlamaydi",                             severity:1},
+    {id:"v_393_79_ddf",      code:"393.79",            label:"Defroster/Defogger - Inoperative or defective",                              labelUz:"Defroster/Defogger — Ishlamaydi yoki nosoz",                              severity:1},
+    {id:"v_392_2_sllmf",     code:"392.2-SLLMF",       label:"State/Local Laws - Wheel (mud) flaps missing or defective",                 labelUz:"Shtat/Mahalliy qonunlar — G'ildirak (loy) qoplamlari yo'q yoki nosoz",  severity:1},
+    // Tires (additional detailed codes)
+    {id:"v_393_75a1_ply",    code:"393.75(a)(1)",      label:"Tire-ply or belt material exposed",                                          labelUz:"Shina — qavat yoki kamarsiz material ko'rinib turibdi",                   severity:8},
+    {id:"v_393_75a1_taob",   code:"393.75A1-TAOBETA",  label:"Tires - All others, bias ply has more than one ply exposed in tread or damaged plies in sidewall", labelUz:"Shinalar — Boshqalar, kosoy qavat tread/yon devorida bir qavattan ko'pi ko'rinib turibdi", severity:8},
+    {id:"v_393_75a1_tepbm",  code:"393.75A1-TEPBM",    label:"Tires - Exposed ply or belt material in tread or sidewall area",            labelUz:"Shinalar — Tread yoki yon devor maydonida qavat/kamar material ko'rinib turibdi", severity:8},
+    {id:"v_393_75a1_tfbmf",  code:"393.75A1-TFBMF",    label:"Tires - Front, belt material/casing ply showing in tread area",             labelUz:"Shinalar — Old, kamar material/qiyofali qavat tread maydonida ko'rinib turibdi", severity:8},
+    {id:"v_393_75a3_auleak", code:"393.75(a)(3)",      label:"Tire-flat and/or audible air leak",                                          labelUz:"Shina — flat va/yoki eshitiladigan havo oqishi",                          severity:8},
+    {id:"v_393_75a3_tals",   code:"393.75A3-TALS",     label:"Tires - All others - Leaking in sidewall area on tire equipped with ATIS",   labelUz:"Shinalar — Boshqalar — ATIS bilan jihozlangan shinaning yon devorida oqish", severity:8},
+    {id:"v_393_75a3_taol",   code:"393.75A3-TAOL",     label:"Tires - All others, leaking or inflation less than 50% of max pressure (non-ATIS)", labelUz:"Shinalar — Boshqalar, oqish yoki bosim maks. bosimning 50%dan kam (ATIS yo'q)", severity:8},
+    {id:"v_393_75a3_taolt",  code:"393.75A3-TAOLTIS",  label:"Tires - All others, leaking and inflation less than 50% of max pressure (ATIS equipped)", labelUz:"Shinalar — Boshqalar, oqish va bosim maks. bosimning 50%dan kam (ATIS bilan)", severity:8},
+    {id:"v_393_75a3_tfl",    code:"393.75A3-TFL",      label:"Tires - Front, leaking or inflation less than 50% of max inflation pressure", labelUz:"Shinalar — Old, oqish yoki maks. bosimning 50%dan kam bosim",            severity:8},
+    {id:"v_393_75c_tread",   code:"393.75(c)",         label:"Tire-other tread depth less than 2/32 inch measured in major tread groove",  labelUz:"Shina — boshqa, asosiy tread chuqurida o'lchanganda 2/32 inchdan kam tread chuqurligi", severity:8},
+    {id:"v_393_75c_lt132",   code:"393.75C-TAOTD-LT1/32",label:"Tires - Less than 1/32 inch tread depth at 3 locations/2 adjacent tread grooves", labelUz:"Shinalar — 3 joyda/2 qo'shni tread chuqurida 1/32 inchdan kam tread chuqurligi", severity:8},
+    {id:"v_393_75c_lt232",   code:"393.75C-TAOTD-LT2/32",label:"Tires - Less than 2/32 inch tread depth",                                labelUz:"Shinalar — 2/32 inchdan kam tread chuqurligi",                            severity:8},
+  ]},
+  hos:{label:"HOS Compliance",color:"#ffd447",threshold:65,items:[
+    {id:"h_392_3f",           code:"392.3-F",          label:"Fatigue - Operating CMV while impaired through fatigue",                  labelUz:"Charchoq — charchoq ta'sirida CMV boshqarish",                              severity:10},
+    {id:"h_395_3a1_11hr",     code:"395.3A1-HOSPD",    label:"Driving more than 11 hours after 10 consecutive hours off",             labelUz:"10 soat dam olgandan keyin 11 soatdan ko'proq haydash",                    severity:7},
+    {id:"h_395_3a2_14hr",     code:"395.3A2-HOSPD",    label:"Driving beyond 14-hour window after 10 hours off",                     labelUz:"10 soat dam olgandan keyin 14 soatlik oynadan oshib ketish",               severity:7},
+    {id:"h_395_3a2_14it",     code:"395.3A2-HOSPDIT",  label:"Driving beyond 14-hour window (at time of inspection)",                labelUz:"Tekshiruv paytida 14 soatlik oynadan oshib ketgan",                        severity:7},
+    {id:"h_395_3b2_70hr",     code:"395.3B2-HOSPDIT",  label:"Driving after 70 hours on-duty in previous 8 days",                    labelUz:"Oxirgi 8 kunda 70 soatdan ko'proq ish tutgandan keyin haydash",           severity:7},
+    {id:"h_395_8e_false",     code:"395.8(e)",         label:"False report of driver's record of duty status",                        labelUz:"Haydovchi faoliyat holati haqida soxta hisobot",                           severity:7},
+    {id:"h_395_8e_hosoos",    code:"395.8E-HOSPDOOS",  label:"Driver produces false record concealing HOS violation",                 labelUz:"Haydovchi HOS buzilishini yashirish uchun soxta yozuv tayyorlaydi",       severity:7},
+    {id:"h_395_8a_nords",     code:"395.8A-NORDS",     label:"No record of duty status",                                             labelUz:"Faoliyat holati yozuvi yo'q",                                              severity:5},
+    {id:"h_395_8a_eld",       code:"395.8A-ELD",       label:"ELD - No record of duty status (ELD required)",                        labelUz:"ELD — faoliyat holati yozuvi yo'q (ELD talab etiladi)",                   severity:5},
+    {id:"h_395_8f01",         code:"395.8F01",         label:"Driver's record of duty status not current",                           labelUz:"Haydovchining faoliyat holati yozuvi joriy emas",                          severity:5},
+    {id:"h_395_8k2",          code:"395.8(k)(2)",      label:"Driver failing to retain previous 7 days records of duty status",      labelUz:"Haydovchi oxirgi 7 kunlik yozuvlarni saqlamagan",                         severity:5},
+    {id:"h_395_22g_eld",      code:"395.22G",          label:"Portable ELD not mounted in fixed position visible to driver",         labelUz:"Ko'chma ELD haydovchiga ko'rinadigan qat'iy joyda o'rnatilmagan",         severity:1},
+    {id:"h_395_22h1_man",     code:"395.22H1-ELDNUM",  label:"No user's manual in vehicle describing how to operate ELD",           labelUz:"ELD ni ishlatish bo'yicha foydalanuvchi qo'llanmasi yo'q",                severity:1},
+    {id:"h_395_24",           code:"395.24",           label:"HOS (ELD) - ELD form and manner",                                     labelUz:"HOS (ELD) — ELD shakli va tartibi",                                        severity:1},
+    {id:"h_395_24d_eldt",     code:"395.24D-ELDPT",    label:"On request, driver must produce and transfer HOS records",            labelUz:"Vakolatli amaldor so'roviga binoan haydovchi HOS yozuvlarini taqdim etishi shart", severity:3},
+    {id:"h_395_30b1",         code:"395.30B1",         label:"Driver failed to certify accuracy of ELD-gathered information",       labelUz:"Haydovchi ELD ma'lumotlarining to'g'riligini tasdiqlamagan",               severity:1},
+    {id:"h_395_20b",          code:"395.20B",           label:"ELD display screen cannot be viewed outside of the commercial motor vehicle", labelUz:"ELD ekrani CMV tashqarisidan ko'rib bo'lmaydi",                          severity:10},
+    {id:"h_395_20b_eldnv",    code:"395.20B-ELDNV",     label:"ELD display screen not viewable by authorized official without entering CMV", labelUz:"Vakolatli amaldor CMVga kirmay ELD ekranini ko'ra olmaydi",            severity:5},
+    {id:"h_395_22h2_eldinst", code:"395.22H2-ELDINST",  label:"Driver failing to have instruction sheet describing how to operate ELD", labelUz:"Haydovchida ELD ni ishlatish bo'yicha ko'rsatma varaqasi yo'q",           severity:1},
+    {id:"h_395_22h3_eldmf",   code:"395.22H3-ELDMF",    label:"Failing to have instruction sheet describing ELD malfunction reporting requirements", labelUz:"ELD nosozligini xabar qilish talablari bo'yicha ko'rsatma yo'q",  severity:1},
+    {id:"h_395_22h4_eldbrods",code:"395.22H4-ELDBRODS",  label:"Failing to have supply of blank driver's records of duty status graph-grids (8 days)", labelUz:"8 kunlik bo'sh haydovchi yozuv varaqlari ta'minoti yo'q",         severity:1},
+    {id:"h_395_24c2b_eldtn",  code:"395.24C2B-ELDTN",   label:"Driver failing to manually input or verify CMV trailer unit number",   labelUz:"Haydovchi CMV tirkama raqamini qo'lda kiritib tekshirmagan",               severity:1},
+    {id:"h_395_24c4_ciiii",   code:"395.24C4III",       label:"Driver failed to manually add shipping document number",               labelUz:"Haydovchi yuk xujjati raqamini qo'shishni unutgan",                        severity:1},
+    {id:"h_395_24c3_eldsdn",  code:"395.24C3-ELDSDN",   label:"Driver failing to manually input or verify shipping document number",  labelUz:"Haydovchi yuk xujjati raqamini qo'lda kiritib tekshirmagan",               severity:1},
+    {id:"h_395_24d",          code:"395.24(d)",          label:"ELD cannot transfer ELD records electronically",                       labelUz:"ELD yozuvlarini elektron yo'l bilan uzatib bo'lmaydi",                     severity:3},
+    {id:"h_395_26b",          code:"395.26(b)",          label:"Motor carrier failed to ensure ELD automatically recorded required data elements", labelUz:"Motor carrier ELD talab etilgan ma'lumotlarni qayd etilishini ta'minlamagan", severity:1},
+    {id:"h_395_30b_elddofr",  code:"395.30B-ELDDOFR",   label:"Driver failing to have records and certify accuracy of ELD information", labelUz:"Haydovchi ELD ma'lumotlar yozuvini saqlamamagan va to'g'riligini tasdiqlamagan", severity:1},
+    {id:"h_395_30b2_elddfc24",code:"395.30B2-ELDDFC24",  label:"Driver failing to retain record immediately after final entry for 24 hour period", labelUz:"Haydovchi 24 soatlik yozuvni oxirgi yozuvdan keyin darhol saqlamagan", severity:1},
+    {id:"h_395_3b1_hospdit",  code:"395.3B1-HOSPDIT",   label:"Driving after being on-duty more than 70 hours in previous 8 consecutive days (at time of inspection)", labelUz:"Oxirgi 8 kunda 70 soatdan ko'proq ish tutgandan keyin haydash (tekshiruv paytida)", severity:7},
+    {id:"h_395_8a_form",      code:"395.8(a)",           label:"HOS (Form) - Paper Log / Logging Programs Form and Manner",            labelUz:"HOS (Shakl) — Qog'oz jurnal / Logging dasturlari shakli va tartibi",        severity:1},
+    {id:"h_395_8e_hospd",     code:"395.8E-HOSPD",       label:"HOS (Property) - No driver may make a false report in connection with a duty status", labelUz:"HOS — Faoliyat holati bilan bog'liq soxta hisobot taqdim etish taqiqlangan", severity:7},
+  ]},
+  unsafe:{label:"Unsafe Driving",color:"#ff8c42",threshold:65,items:[
+    {id:"u_392_16",           code:"392.16",           label:"Failing to use seat belt while operating CMV",                          labelUz:"CMV boshqarayotganda xavfsizlik kamarini takmagan",                         severity:7},
+    {id:"u_392_16ad",         code:"392.16AD",         label:"Driver - Failed to use seat belt while operating CMV",                 labelUz:"Haydovchi — CMV boshqarayotganda xavfsizlik kamarini takmagan",            severity:7},
+    {id:"u_392_2c_tcd",       code:"392.2C",           label:"Failure to obey traffic control device",                               labelUz:"Yo'l belgisi yoki svetoforga bo'ysunmaslik",                                severity:5},
+    {id:"u_392_2_inat",       code:"392.2-INAT",       label:"Driver inattentive or distracted driving",                            labelUz:"Haydovchining e'tiborsizligi yoki chalg'ishi",                              severity:5},
+    {id:"u_392_2lc",          code:"392.2LC",          label:"Improper lane change",                                                 labelUz:"Noto'g'ri qatorni almashtirish",                                            severity:5},
+    {id:"u_392_2_ml",         code:"392.2-ML",         label:"Failure to maintain lane",                                            labelUz:"O'z qatorini saqlamaslik",                                                  severity:5},
+    {id:"u_392_2_sllfc",      code:"392.2-SLLFC",      label:"Following too closely",                                               labelUz:"Oldidagi mashinaga juda yaqin borib ketish",                                severity:5},
+    {id:"u_392_2_sllfy",      code:"392.2-SLLFY",      label:"Failed to yield right of way",                                        labelUz:"Yo'l bermaslik",                                                            severity:5},
+    {id:"u_392_2_sltfc",      code:"392.2-SLTFC",      label:"Speeding - too fast for conditions / basic rule",                     labelUz:"Asosiy tezlik qoidasi / sharoitga mos kelmaydigan tezlik",                 severity:5},
+    {id:"u_392_2_slls2",      code:"392.2-SLLS2",      label:"Speeding 6–10 mph over the limit",                                    labelUz:"Tezlik chegarasidan 6–10 mph oshirib ketish",                               severity:4},
+    {id:"u_392_2_slls3",      code:"392.2-SLLS3",      label:"Speeding 11–14 mph over the limit",                                   labelUz:"Tezlik chegarasidan 11–14 mph oshirib ketish",                              severity:7},
+    {id:"u_392_2_slls4",      code:"392.2-SLLS4",      label:"Speeding 15+ mph over the limit",                                     labelUz:"Tezlik chegarasidan 15+ mph oshirib ketish",                                severity:10},
+    {id:"u_392_2_sllswz",     code:"392.2-SLLSWZ",     label:"Speeding in work/construction zone",                                  labelUz:"Qurilish / ish zonasida tezlik oshirish",                                  severity:10},
+    {id:"u_392_2_sllcp",      code:"392.2-SLLCP",      label:"Operating CMV while using a cellular phone",                          labelUz:"CMV boshqarayotganda uyali telefon ishlatish",                              severity:10},
+    {id:"u_392_2_sllt",       code:"392.2-SLLT",       label:"Operating CMV while texting",                                         labelUz:"CMV boshqarayotganda xabar yozish",                                         severity:10},
+    {id:"u_392_22a",          code:"392.22(a)",         label:"Failing to use hazard warning flashers",                               labelUz:"Xavf ogohlantiruv chiroqlarini yoqmaslik",                                 severity:1},
+    {id:"u_392_2pk",          code:"392.2PK",           label:"Unlawfully parking/leaving vehicle in roadway",                        labelUz:"Yo'lda noqonuniy to'xtab qolish/tashlab ketish",                           severity:1},
+    {id:"u_392_2lv",          code:"392.2LV",           label:"Lane restriction violation",                                          labelUz:"Qator cheklovini buzish",                                                   severity:3},
+    {id:"u_392_16d",          code:"392.16-D",          label:"Driver - Failed to use seat belt while operating CMV (16-D)",          labelUz:"Haydovchi — xavfsizlik kamarini takmagan (16-D)",                          severity:7},
+    {id:"u_392_2_slimpt",     code:"392.2SLIMPT",       label:"State/Local Laws - General impeding traffic",                          labelUz:"Shtat/Mahalliy qonunlar — umumiy trafikka to'sqinlik qilish",               severity:5},
+    {id:"u_392_2_slllc",      code:"392.2-SLLLC",       label:"State/Local Laws - Improper lane change",                              labelUz:"Shtat/Mahalliy qonunlar — noto'g'ri qator almashtirish",                    severity:5},
+    {id:"u_392_2_slllr",      code:"392.2-SLLLR",       label:"State/Local Laws - Lane restriction violation",                        labelUz:"Shtat/Mahalliy qonunlar — qator cheklovini buzish",                         severity:5},
+    {id:"u_392_2_sllml",      code:"392.2-SLLML",       label:"State/Local Laws - Failure to maintain lane",                          labelUz:"Shtat/Mahalliy qonunlar — o'z qatorini saqlamaslik",                        severity:5},
+    {id:"u_392_2_sltcd",      code:"392.2-SLTCD",       label:"State/Local Laws - Failed to obey traffic control device (Permanent/Temporary)",  labelUz:"Shtat/Mahalliy qonunlar — doimiy/vaqtinchalik yo'l belgisiga bo'ysunmaslik", severity:5},
+    {id:"u_392_2_sllup",      code:"392.2-SLLUP",       label:"State/Local Laws - Unlawfully parking/leaving vehicle on roadway",     labelUz:"Shtat/Mahalliy qonunlar — yo'lda noqonuniy to'xtash/tashlab ketish",      severity:1},
+    {id:"u_392_60a",          code:"392.60A",            label:"Unauthorized passenger on board CMV",                                  labelUz:"CMVda ruxsatsiz yo'lovchi",                                                 severity:1},
+  ]},
+  fitness:{label:"Driver Fitness / D&A",color:"#8b5cf6",threshold:999,items:[
+    {id:"f_383_23a2_lcdl",    code:"383.23A2-LCDL",     label:"Endorsements (CDL) - Operate CMV without proper endorsements on operators license", labelUz:"Endorsement (CDL) — lisenziyada zarur endorsementsiz CMV boshqarish",  severity:8},
+    {id:"f_383_23a2_lcdln",   code:"383.23A2-LCDLN",    label:"License (CDL) - Operate a CMV and does not possess a valid CDL",       labelUz:"Lisenziya (CDL) — yaroqli CDL yo'q holda CMV boshqarish",                  severity:8},
+    {id:"f_383_23a2_lcdlnp",  code:"383.23A2-LCDLNP",   label:"License (CDL) - Operate a CMV while not in possession of a CDL on person", labelUz:"Lisenziya (CDL) — CDL qo'lida bo'lmagan holda CMV boshqarish",          severity:8},
+    {id:"f_383_51a_sin",      code:"383.51A-SIN",        label:"Driving a CMV while CDL is suspended for safety-related reason (in-state)", labelUz:"CDL to'xtatilgan holda CMV haydash (xavfsizlik sababi, o'z shtatida)", severity:8},
+    {id:"f_383_51a_sout",     code:"383.51A-SOUT",       label:"Driving a CMV while CDL is suspended for safety-related reason (out-of-state)", labelUz:"CDL to'xtatilgan holda CMV haydash (boshqa shtatlarda)",           severity:5},
+    {id:"f_383_95a_lcdl",     code:"383.95A-LCDL",       label:"Restriction (CDL) - Operate a CMV in violation of a restriction",      labelUz:"Cheklov (CDL) — CDL cheklovini buzib CMV boshqarish",                      severity:8},
+    {id:"f_391_11b2_gq",      code:"391.11B2-GQ",        label:"Driver cannot satisfy English language proficiency requirements (391.11(b)(2))", labelUz:"Haydovchi ingliz tili talablarini qondira olmaydi (391.11(b)(2))",  severity:4},
+    {id:"f_391_11b_lncdlnve", code:"391.11B-LNCDLNVE",   label:"License (Non-CDL) - Operate CMV without proper endorsement or in violation of restriction", labelUz:"Lisenziya (CDL emas) — zarur endorsementsiz yoki cheklovni buzib CMV boshqarish", severity:8},
+    {id:"f_392_15_da",        code:"392.15",             label:"Driver Prohibited from Performing Safety Sensitive Functions (Drug and Alcohol Clearinghouse 382.501(a))", labelUz:"Giyohvand/Alkohol Clearinghouse — haydovchi xavfsizlikka oid vazifalar bajarishdan taqiqlangan", severity:10},
+  ]}
+};
+
+// ============================================================
+// DATA LAYER
+// ============================================================
+let DB = { inspections: [] };
+let filteredRows = null;
+const charts = {};
+
+function load()  { const s=localStorage.getItem('dotmon'); if(s) DB=JSON.parse(s); }
+function save()  { localStorage.setItem('dotmon', JSON.stringify(DB)); }
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2); }
+
+function monthsDiff(dateStr, now) {
+  const d=new Date(dateStr+'T00:00:00');
+  return (now.getFullYear()-d.getFullYear())*12+(now.getMonth()-d.getMonth());
+}
+
+function fmtDate(s) {
+  if(!s) return '—';
+  const d=new Date(s+'T00:00:00');
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+function scoreColor(sc, cat) {
+  const th=VC[cat]?.threshold||65;
+  if(sc<50) return '#00cc7a';
+  if(sc<th) return '#ffd447';
+  if(sc<th+15) return '#ff8c42';
+  return '#ff3860';
+}
+
+function scoreStatus(sc, cat) {
+  const th=VC[cat]?.threshold||65;
+  if(sc<50)    return {text:'✓ Satisfactory',cls:'status-safe'};
+  if(sc<th)    return {text:'⚠ Marginal',   cls:'status-caution'};
+  if(sc<th+15) return {text:'⚡ Conditional',cls:'status-warning'};
+  return            {text:'✗ Unsatisfactory',cls:'status-danger'};
+}
+
+function badgeCls(sc, cat) {
+  const th=VC[cat]?.threshold||65;
+  if(sc<50)    return 'badge-safe';
+  if(sc<th)    return 'badge-caution';
+  if(sc<th+15) return 'badge-warning';
+  return 'badge-danger';
+}
+
+function resultBadge(r) {
+  const map = {
+    clean1:  ['badge-safe',    'CLEAN 1'],
+    clean2:  ['badge-safe',    'CLEAN 2'],
+    clean3:  ['badge-safe',    'CLEAN 3'],
+    log:     ['badge-caution', 'LOG'],
+    uns_log: ['badge-warning', 'UNS & LOG'],
+    unsafe:  ['badge-warning', 'UNSAFE'],
+    veh_log: ['badge-warning', 'VEH & LOG'],
+    veh_uns: ['badge-warning', 'VEH & UNS'],
+    vehicle: ['badge-danger',  'VEHICLE'],
+  };
+  const [cls, lbl] = map[r] || ['badge-danger', r||'—'];
+  return `<span class="badge ${cls}">${lbl}</span>`;
+}
+
+function sevCls(s) {
+  if(s<=2) return 'sev-low';
+  if(s<=4) return 'sev-med';
+  if(s<=6) return 'sev-high';
+  return 'sev-crit';
+}
+
+function toast(msg, type='success') {
+  const c=document.getElementById('toasts');
+  const t=document.createElement('div');
+  t.className=`toast toast-${type}`;
+  t.innerHTML=`<span>${type==='success'?'✅':'❌'}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(100%)';t.style.transition='.3s'},2800);
+  setTimeout(()=>t.remove(),3100);
+}
+
+function mkChart(id, cfg) {
+  if(charts[id]) { charts[id].destroy(); delete charts[id]; }
+  const el=document.getElementById(id);
+  if(!el) return;
+  const ch=new Chart(el.getContext('2d'), cfg);
+  charts[id]=ch;
+  return ch;
+}
+
+// ============================================================
+// BASIC SCORE CALC
+// ============================================================
+function calcBASIC(cat) {
+  const now=new Date();
+  let pts=0, cnt=0, insp=0;
+  DB.inspections.forEach(i=>{
+    const mo=monthsDiff(i.date,now);
+    if(mo>24) return;
+    insp++;
+    const tw=mo<=6?3:mo<=12?2:1;
+    i.violations.filter(v=>v.category===cat).forEach(v=>{
+      const sev=(v.severity||0)+(v.oos?2:0);
+      const violPts=Math.min(sev*tw, 30); // max 30 ball jarima bitta violation uchun
+      pts+=violPts; cnt++;
+    });
+  });
+  if(!insp) return {score:0,points:0,count:0};
+  const maxPts=8*3*Math.max(insp,1);
+  return {score:Math.min(90,Math.round((pts/maxPts)*100)),points:pts,count:cnt}; // max 90 bal
+}
+
+function calcBASICMonth(cat, year, month) {
+  const now = new Date();
+  let pts = 0, cnt = 0;
+  DB.inspections.forEach(i => {
+    const d = new Date(i.date + 'T00:00:00');
+    if (d.getFullYear() !== year || d.getMonth() !== month) return;
+    const mo = monthsDiff(i.date, now);
+    if (mo > 24) return;
+    const tw = mo <= 6 ? 3 : mo <= 12 ? 2 : 1;
+    i.violations.filter(v => v.category === cat).forEach(v => {
+      const sev=(v.severity||0)+(v.oos?2:0);
+      pts += Math.min(sev * tw, 30); cnt++;
+    });
+  });
+  return { points: pts, count: cnt };
+}
+
+function calcBASICWeek(cat) {
+  // Current week: Mon–Sun
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const diffToMon = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() + diffToMon);
+  weekStart.setHours(0,0,0,0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23,59,59,999);
+
+  let pts = 0, cnt = 0;
+  DB.inspections.forEach(i => {
+    const d = new Date(i.date + 'T00:00:00');
+    if (d < weekStart || d > weekEnd) return;
+    const mo = monthsDiff(i.date, now);
+    if (mo > 24) return;
+    const tw = mo <= 6 ? 3 : mo <= 12 ? 2 : 1;
+    i.violations.filter(v => v.category === cat).forEach(v => {
+      const sev=(v.severity||0)+(v.oos?2:0);
+      pts += Math.min(sev * tw, 30); cnt++;
+    });
+  });
+  return { points: pts, count: cnt };
+}
+
+function violBreakdown(cat) {
+  const now=new Date(), bd={};
+  DB.inspections.forEach(i=>{
+    if(monthsDiff(i.date,now)>24) return;
+    i.violations.filter(v=>v.category===cat).forEach(v=>{
+      if(!bd[v.id]) bd[v.id]={label:v.label,count:0,severity:v.severity};
+      bd[v.id].count++;
+    });
+  });
+  return Object.values(bd).sort((a,b)=>b.count-a.count);
+}
+
+// ============================================================
+// GAUGE SVG
+// ============================================================
+function updateGaugeArc(arcId, pct) {
+  const arc=document.getElementById(arcId);
+  if(!arc) return;
+  pct=Math.min(Math.max(pct,0),1);
+  if(pct<=0.005) { arc.setAttribute('d','M18 100 A82 82 0 0 1 18.01 100'); return; }
+  if(pct>=0.995) { arc.setAttribute('d','M18 100 A82 82 0 0 1 182 100'); return; }
+  const angle=Math.PI*(1-pct);
+  const cx=100,cy=100,r=82;
+  const x=(cx+r*Math.cos(angle)).toFixed(2);
+  const y=(cy-r*Math.sin(angle)).toFixed(2);
+  const la=pct>0.5?1:0;
+  arc.setAttribute('d',`M18 100 A${r} ${r} 0 ${la} 1 ${x} ${y}`);
+}
+
+function updateGauge(prefix, sc, cat) {
+  const col=scoreColor(sc,cat);
+  const st=scoreStatus(sc,cat);
+  const arc=document.getElementById(`${prefix}-arc`);
+  if(arc){ arc.setAttribute('stroke',col); updateGaugeArc(`${prefix}-arc`,sc/100); }
+  const val=document.getElementById(`${prefix}-val`);
+  if(val){ val.textContent=sc; val.setAttribute('fill',col); }
+  const sts=document.getElementById(`${prefix}-status`);
+  if(sts){ sts.textContent=st.text; sts.className=`gauge-status ${st.cls}`; }
+}
+
+// ============================================================
+// TAB ROUTING
+// ============================================================
+let activeTab='dashboard';
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  if(btn) btn.classList.add('active');
+  activeTab=tab;
+  refreshTab(tab);
+}
+
+function refreshTab(tab) {
+  if(tab==='dashboard') renderDashboard();
+  else if(tab==='monthly') renderMonthly();
+  else if(tab==='stations') renderStations();
+  else if(tab==='safety') renderSafety();
+  else if(tab==='monitoring') renderMonitoring();
+}
+
+// ============================================================
+// VIOLATION PANELS (Form)
+// ============================================================
+function buildViolPanels() {
+  Object.entries(VC).forEach(([cat,cfg])=>{
+    const el=document.getElementById(`vp-${cat}`);
+    if(!el) return;
+    el.innerHTML=cfg.items.map(it=>`
+      <div class="viol-item" data-code="${it.code||it.id}" data-en="${it.label.toLowerCase()}" data-uz="${(it.labelUz||'').toLowerCase()}">
+        <input type="checkbox" id="vi-${it.id}" data-cat="${cat}" data-sev="${it.severity}" data-lbl="${it.label}" data-code="${it.code||it.id}" onclick="onViolClick(event,this)">
+        <div style="flex:1;min-width:0" onclick="onViolLabelClick(event,'vi-${it.id}')">
+          <div style="font-size:9px;color:var(--amber);font-family:'JetBrains Mono',monospace;margin-bottom:2px">${it.code||it.id}</div>
+          <label for="vi-${it.id}" style="display:block;cursor:pointer">${it.label}</label>
+          ${it.labelUz?`<div style="font-size:10px;color:var(--text3);margin-top:1px">${it.labelUz}</div>`:''}
+        </div>
+        <span class="viol-severity ${sevCls(it.severity)}">${it.severity}</span>
+        <label class="oos-toggle" id="oos-lbl-${it.id}" title="Out of Service — +2 point qo'shiladi" onclick="onOosClick(event,'${it.id}')">
+          <input type="checkbox" id="oos-${it.id}" data-viol="${it.id}" style="pointer-events:none">
+          🚫 OOS
+        </label>
+      </div>`).join('');
+  });
+  // live count + preview listener
+  document.addEventListener('change', e=>{
+    if(e.target?.type==='checkbox'){ updateViolCount(); updateSMSPreview(); }
+  });
+}
+
+function filterViolations(q) {
+  q=q.trim().toLowerCase();
+  let total=0;
+  document.querySelectorAll('.viol-panel .viol-item').forEach(item=>{
+    const code=(item.dataset.code||'').toLowerCase();
+    const en=(item.dataset.en||'').toLowerCase();
+    const uz=(item.dataset.uz||'').toLowerCase();
+    const match=!q||code.includes(q)||en.includes(q)||uz.includes(q);
+    item.style.display=match?'':'none';
+    if(match) total++;
+  });
+  // Switch to tab with most matches if searching
+  if(q){
+    let best=null,bestCount=0;
+    ['vehicle','hos','unsafe','fitness'].forEach(cat=>{
+      const panel=document.getElementById(`vp-${cat}`);
+      const vis=panel?panel.querySelectorAll('.viol-item:not([style*="none"])').length:0;
+      if(vis>bestCount){bestCount=vis;best=cat;}
+    });
+    if(best && bestCount>0){
+      const btn=document.getElementById(`vtab-${best}`);
+      if(btn) switchViolTab(best,btn);
+    }
+  }
+  const sc=document.getElementById('viol-search-count');
+  if(sc) sc.textContent=q?`${total} natija`:'';
+}
+
+function updateSMSPreview() {
+  const dateFld = document.getElementById('f-date');
+  const checkDate = dateFld?.value || new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const mo = Math.floor((now - new Date(checkDate + 'T00:00:00')) / (30 * 24 * 3600 * 1000));
+  const tw = mo <= 6 ? 3 : mo <= 12 ? 2 : mo <= 24 ? 1 : 0;
+
+  // Faqat shu inspeksiyadagi tanlangan violationlar
+  const pts = { vehicle: 0, hos: 0, unsafe: 0 };
+  const violCbs = document.querySelectorAll('#vp-vehicle input[type="checkbox"][id^="vi-"]:checked, #vp-hos input[type="checkbox"][id^="vi-"]:checked, #vp-unsafe input[type="checkbox"][id^="vi-"]:checked, #vp-fitness input[type="checkbox"][id^="vi-"]:checked');
+  violCbs.forEach(cb => {
+    const cat = cb.dataset.cat;
+    if (!pts.hasOwnProperty(cat)) return;
+    const sev = parseInt(cb.dataset.sev) || 0;
+    const violId = cb.id.replace('vi-', '');
+    const oosCb = document.getElementById('oos-' + violId);
+    const oosPts = (oosCb && oosCb.checked) ? 2 : 0;
+    pts[cat] += Math.min((sev + oosPts) * tw, 30);
+  });
+
+  // Umumiy ball 90 dan oshmasin
+  const total = pts.vehicle + pts.hos + pts.unsafe;
+  const cap = 90;
+  if (total > cap) {
+    const ratio = cap / total;
+    pts.vehicle = Math.round(pts.vehicle * ratio);
+    pts.hos = Math.round(pts.hos * ratio);
+    pts.unsafe = cap - pts.vehicle - pts.hos;
+  }
+
+  const colors = { vehicle: 'var(--blue)', hos: 'var(--caution)', unsafe: 'var(--warn)' };
+  ['vehicle', 'hos', 'unsafe'].forEach(cat => {
+    const key = cat === 'vehicle' ? 'vm' : cat;
+    const el = document.getElementById('preview-' + key);
+    const val = pts[cat];
+    if (el) {
+      el.textContent = val + ' bal';
+      el.style.color = val > 0 ? (val >= 20 ? 'var(--danger)' : val >= 10 ? 'var(--warn)' : colors[cat]) : 'var(--text3)';
+    }
+  });
+}
+
+function onViolClick(event, cb) {
+  event.stopPropagation();
+  const item = cb.closest('.viol-item');
+  // If unchecking violation, also uncheck OOS
+  if(!cb.checked) {
+    const violId = cb.id.replace('vi-','');
+    const oosCb = document.getElementById(`oos-${violId}`);
+    const oosLbl = document.getElementById(`oos-lbl-${violId}`);
+    if(oosCb) oosCb.checked = false;
+    if(oosLbl) oosLbl.classList.remove('oos-active');
+    if(item) item.classList.remove('has-oos');
+  }
+  updateViolCount();
+  updateSMSPreview();
+}
+
+function onViolLabelClick(event, violInputId) {
+  event.stopPropagation();
+  const cb = document.getElementById(violInputId);
+  if(!cb) return;
+  cb.checked = !cb.checked;
+  if(!cb.checked) {
+    const violId = violInputId.replace('vi-','');
+    const oosCb = document.getElementById(`oos-${violId}`);
+    const oosLbl = document.getElementById(`oos-lbl-${violId}`);
+    const item = cb.closest('.viol-item');
+    if(oosCb) oosCb.checked = false;
+    if(oosLbl) oosLbl.classList.remove('oos-active');
+    if(item) item.classList.remove('has-oos');
+  }
+  updateViolCount();
+  updateSMSPreview();
+}
+
+function onOosClick(event, violId) {
+  event.stopPropagation();
+  const violCb = document.getElementById(`vi-${violId}`);
+  const oosCb = document.getElementById(`oos-${violId}`);
+  const oosLbl = document.getElementById(`oos-lbl-${violId}`);
+  const item = oosCb?.closest('.viol-item');
+  if(!oosCb) return;
+  // Toggle OOS
+  oosCb.checked = !oosCb.checked;
+  if(oosCb.checked) {
+    // Auto-check parent violation if not checked
+    if(violCb && !violCb.checked) violCb.checked = true;
+    if(oosLbl) oosLbl.classList.add('oos-active');
+    if(item) item.classList.add('has-oos');
+  } else {
+    if(oosLbl) oosLbl.classList.remove('oos-active');
+    if(item) item.classList.remove('has-oos');
+  }
+  updateViolCount();
+  updateSMSPreview();
+}
+
+function toggleCb(item) {
+  const cb=item.querySelector('input[type="checkbox"]');
+  if(cb) cb.checked=!cb.checked;
+  updateViolCount();
+}
+
+function updateViolCount() {
+  const n=document.querySelectorAll('#tab-entry .viol-item input[type="checkbox"]:checked:not([id^="oos-"])').length;
+  const oosN=document.querySelectorAll('#tab-entry .oos-toggle input[type="checkbox"]:checked').length;
+  const el=document.getElementById('entry-viol-count');
+  if(el) el.textContent=`${n} violation tanlangan${oosN>0?` · ${oosN} OOS (+${oosN*2} pt)`:''}`;
+}
+
+function switchViolTab(cat, btn) {
+  // Only affect main form violation panels/tabs
+  document.querySelectorAll('#tab-entry .viol-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#tab-entry .viol-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(`vp-${cat}`).classList.add('active');
+}
+
+// ============================================================
+// FORM SUBMIT
+// ============================================================
+function clearForm() {
+  ['f-date','f-station','f-driver','f-vehicle','f-notes'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('f-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('f-state').value='';
+  document.getElementById('f-level').value='1';
+  document.getElementById('f-result').value='clean1';
+  document.querySelectorAll('.viol-item input[type="checkbox"]').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('.oos-toggle').forEach(lbl=>lbl.classList.remove('oos-active'));
+  document.querySelectorAll('.viol-item').forEach(item=>item.classList.remove('has-oos'));
+  updateViolCount();
+}
+
+function submitInspection() {
+  const date=document.getElementById('f-date').value;
+  const state=document.getElementById('f-state').value;
+  if(!date||!state){ toast('Sana va Shtatni kiriting!','error'); return; }
+
+  const violations=[];
+  document.querySelectorAll('#tab-entry .viol-item input[type="checkbox"]:checked').forEach(cb=>{
+    if(cb.id.startsWith('oos-')) return; // skip OOS checkboxes here
+    const violId=cb.id.replace('vi-','');
+    const oosCb=document.getElementById(`oos-${violId}`);
+    const oos=oosCb?oosCb.checked:false;
+    const baseSev=parseInt(cb.dataset.sev)||0;
+    violations.push({id:cb.dataset.code||cb.id.replace('vi-',''),category:cb.dataset.cat,severity:baseSev,oos:oos,label:cb.dataset.lbl});
+  });
+
+  DB.inspections.unshift({
+    id:uid(), date,
+    state, station:document.getElementById('f-station').value||'Noma\'lum',
+    driver:document.getElementById('f-driver').value||'Noma\'lum',
+    vehicle:document.getElementById('f-vehicle').value||'Noma\'lum',
+    notes:document.getElementById('f-notes').value||'',
+    level:parseInt(document.getElementById('f-level').value),
+    result:document.getElementById('f-result').value,
+    violations, createdAt:new Date().toISOString()
+  });
+
+  save();
+  clearForm();
+  populateYearSel();
+  populateStateSel();
+  toast(`Tekshiruv saqlandi! (${violations.length} violation)`);
+  refreshTab(activeTab);
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard() {
+  // Stats
+  const n=DB.inspections.length;
+  document.getElementById('s-total').textContent=n;
+
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth();
+  const curMonthName = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][curMonth];
+
+  // BASIC scores — show "bal" only, no %
+  ['vm','hos','unsafe'].forEach(k=>{
+    const cat=k==='vm'?'vehicle':k;
+    const r=calcBASIC(cat);
+    const monthR=calcBASICMonth(cat, curYear, curMonth);
+    const weekR=calcBASICWeek(cat);
+    const col=scoreColor(r.score,cat);
+    const st=scoreStatus(r.score,cat);
+    const mainEl=document.getElementById(`s-${k}`);
+    if(mainEl){mainEl.textContent=r.points+' bal'; mainEl.style.color=col;}
+    const totalEl=document.getElementById(`s-${k}-total`);
+    if(totalEl) totalEl.textContent=`Umumiy: ${r.points} bal`;
+    const weekEl=document.getElementById(`s-${k}-week`);
+    if(weekEl) weekEl.textContent=`Bu hafta: ${weekR.points} bal`;
+    const monthEl=document.getElementById(`s-${k}-month`);
+    if(monthEl) monthEl.textContent=`${curMonthName}: ${monthR.points} bal`;
+    const stEl=document.getElementById(`s-${k}-st`);
+    if(stEl){stEl.textContent=st.text; stEl.style.color=col;}
+    updateGauge(`g-${k}`,r.score,cat);
+  });
+
+  // Clean 1 / Clean 2 / Clean 3 counts
+  const c1total = DB.inspections.filter(i=>i.result==='clean1').length;
+  const c2total = DB.inspections.filter(i=>i.result==='clean2').length;
+  const c3total = DB.inspections.filter(i=>i.result==='clean3').length;
+  const c1month = DB.inspections.filter(i=>{
+    const d=new Date(i.date+'T00:00:00');
+    return i.result==='clean1'&&d.getFullYear()===curYear&&d.getMonth()===curMonth;
+  }).length;
+  const c2month = DB.inspections.filter(i=>{
+    const d=new Date(i.date+'T00:00:00');
+    return i.result==='clean2'&&d.getFullYear()===curYear&&d.getMonth()===curMonth;
+  }).length;
+  const c3month = DB.inspections.filter(i=>{
+    const d=new Date(i.date+'T00:00:00');
+    return i.result==='clean3'&&d.getFullYear()===curYear&&d.getMonth()===curMonth;
+  }).length;
+
+  const setEl=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  setEl('s-c1', c1total); setEl('s-c1-total',`Umumiy: ${c1total}`); setEl('s-c1-month',`${curMonthName}: ${c1month}`);
+  setEl('s-c2', c2total); setEl('s-c2-total',`Umumiy: ${c2total}`); setEl('s-c2-month',`${curMonthName}: ${c2month}`);
+  setEl('s-c3', c3total); setEl('s-c3-total',`Umumiy: ${c3total}`); setEl('s-c3-month',`${curMonthName}: ${c3month}`);
+
+  // Clean per-month grid (all 12 months of current year)
+  const cleanGrid=document.getElementById('clean-monthly-grid');
+  if(cleanGrid){
+    const mc1=Array(12).fill(0), mc2=Array(12).fill(0), mc3=Array(12).fill(0);
+    DB.inspections.forEach(i=>{
+      const d=new Date(i.date+'T00:00:00');
+      if(d.getFullYear()!==curYear) return;
+      const m=d.getMonth();
+      if(i.result==='clean1') mc1[m]++;
+      else if(i.result==='clean2') mc2[m]++;
+      else if(i.result==='clean3') mc3[m]++;
+    });
+    cleanGrid.innerHTML=MONTHS.map((mn,mi)=>`
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:8px 10px;text-align:center">
+        <div style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-bottom:5px;text-transform:uppercase">${mn}</div>
+        <div style="display:flex;justify-content:center;gap:8px">
+          <div style="text-align:center"><div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:var(--safe)">${mc1[mi]}</div><div style="font-size:8px;color:var(--text3)">C1</div></div>
+          <div style="text-align:center"><div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#00e5a0">${mc2[mi]}</div><div style="font-size:8px;color:var(--text3)">C2</div></div>
+          <div style="text-align:center"><div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#4ade80">${mc3[mi]}</div><div style="font-size:8px;color:var(--text3)">C3</div></div>
+        </div>
+      </div>`).join('');
+  }
+
+  // Alerts
+  const ac=document.getElementById('alerts-container');
+  let html='';
+  [['vehicle','vm'],['hos','hos'],['unsafe','unsafe']].forEach(([cat,k])=>{
+    const r=calcBASIC(cat);
+    const th=VC[cat].threshold;
+    if(r.score>=th) html+=`<div class="alert-banner alert-danger">🚨 ${VC[cat].label} BASIC Ball <strong>${r.points} bal (${r.score}%)</strong> — Alert threshold (${th}%) dan oshdi! Darhol choralar ko'ring.</div>`;
+    else if(r.score>=th*0.82) html+=`<div class="alert-banner alert-warning">⚡ ${VC[cat].label} BASIC Ball <strong>${r.points} bal (${r.score}%)</strong> — Alert thresholdga (${th}%) yaqinlashmoqda.</div>`;
+  });
+  ac.innerHTML=html;
+
+  // Recent list
+  const rl=document.getElementById('recent-list');
+  const rec=DB.inspections.slice(0,8);
+  if(!rec.length){
+    rl.innerHTML='<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">Hali ma\'lumot kiritilmagan</div></div>';
+  } else {
+    rl.innerHTML='<div style="display:flex;flex-direction:column;gap:7px">'+rec.map(i=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--bg3);border-radius:7px;border:1px solid var(--border)">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text1)">${i.driver} · ${i.vehicle}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:2px">${fmtDate(i.date)} · ${i.state} · ${i.station}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:10px;color:var(--text3)">${i.violations.length} viol.</span>
+          ${resultBadge(i.result)}
+        </div>
+      </div>`).join('')+'</div>';
+  }
+
+  // Top states — count INSPECTIONS per state (each inspection = 1)
+  const sc={};
+  DB.inspections.forEach(i=>{ sc[i.state]=(sc[i.state]||0)+1; });
+  const sorted=Object.entries(sc).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if(sorted.length){
+    mkChart('ch-top-states',{type:'bar',data:{
+      labels:sorted.map(s=>s[0]),
+      datasets:[{data:sorted.map(s=>s[1]),backgroundColor:sorted.map((_,i)=>`hsla(${200+i*18},65%,58%,.8)`),borderRadius:6,borderSkipped:false}]
+    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      x:{ticks:{color:'#8ba8d4',font:{size:11}},grid:{display:false},border:{display:false}},
+      y:{ticks:{color:'#4a6280',font:{size:10},stepSize:1},grid:{color:'rgba(30,45,71,.5)'},border:{display:false},beginAtZero:true}
+    }}});
+  }
+
+  renderDriverRanking();
+}
+
+// ============================================================
+// DRIVER RANKING
+// ============================================================
+const CLEAN_RESULTS=['clean1','clean2','clean3'];
+const VIOL_RESULTS =['log','uns_log','unsafe','veh_log','veh_uns','vehicle'];
+
+let drvSortKey='in';
+let drvSortDir=-1; // -1 = desc, 1 = asc
+
+function buildDriverStats() {
+  const map={};
+  DB.inspections.forEach(i=>{
+    const key=i.driver||"Noma'lum";
+    if(!map[key]) map[key]={name:key,in:0,cn:0,vn:0};
+    map[key].in++;
+    if(CLEAN_RESULTS.includes(i.result)) map[key].cn++;
+    else                                 map[key].vn++;
+  });
+  return Object.values(map);
+}
+
+function sortDrivers(key) {
+  // Toggle direction if same key, else reset to desc
+  if(drvSortKey===key) drvSortDir*=-1;
+  else { drvSortKey=key; drvSortDir=-1; }
+  // Update header classes
+  ['in','cn','vn','rate'].forEach(k=>{
+    const th=document.getElementById('drv-th-'+k);
+    if(!th) return;
+    th.className='drv-stat-cell'+(drvSortKey===k?(drvSortDir===-1?' sort-desc':' sort-asc'):'');
+  });
+  renderDriverRanking();
+}
+
+function renderDriverRanking() {
+  const tbody=document.getElementById('drv-rank-body');
+  const empty=document.getElementById('drv-rank-empty');
+  if(!tbody) return;
+
+  let rows=buildDriverStats();
+  if(!rows.length){ tbody.innerHTML=''; if(empty) empty.style.display='block'; return; }
+  if(empty) empty.style.display='none';
+
+  rows.sort((a,b)=>{
+    let va,vb;
+    if(drvSortKey==='name'){ va=a.name.toLowerCase(); vb=b.name.toLowerCase(); return drvSortDir*(va<vb?-1:va>vb?1:0); }
+    if(drvSortKey==='rate'){ va=a.in?a.cn/a.in:0; vb=b.in?b.cn/b.in:0; }
+    else { va=a[drvSortKey]||0; vb=b[drvSortKey]||0; }
+    return drvSortDir*(vb-va);
+  });
+
+  const maxIN=rows[0]?Math.max(...rows.map(r=>r.in),1):1;
+
+  tbody.innerHTML=rows.map((r,i)=>{
+    const rate=r.in?Math.round(r.cn/r.in*100):0;
+    const vnPct=r.in?Math.round(r.vn/r.in*100):0;
+    const cnPct=100-vnPct;
+    const rateColor=rate>=80?'var(--safe)':rate>=50?'var(--caution)':'var(--danger)';
+    return `<tr>
+      <td class="drv-rank-num">${i+1}</td>
+      <td>
+        <div class="drv-rank-name">${r.name}</div>
+        <div class="drv-bar-wrap" style="margin-top:5px;width:${Math.round(r.in/maxIN*100)}%;min-width:30px">
+          <div class="drv-bar-vn" style="width:${vnPct}%"></div>
+          <div class="drv-bar-cn" style="width:${cnPct}%"></div>
+        </div>
+      </td>
+      <td class="drv-stat-cell"><span class="drv-in">${r.in}</span></td>
+      <td class="drv-stat-cell"><span class="drv-cn">${r.cn}</span></td>
+      <td class="drv-stat-cell"><span class="drv-vn">${r.vn}</span></td>
+      <td class="drv-bar-cell">
+        <div style="display:flex;align-items:center;gap:7px">
+          <div class="drv-bar-wrap" style="flex:1;height:10px">
+            <div class="drv-bar-vn" style="width:${vnPct}%"></div>
+            <div class="drv-bar-cn" style="width:${cnPct}%"></div>
+          </div>
+          <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;white-space:nowrap">${r.vn}/${r.cn}</span>
+        </div>
+      </td>
+      <td class="drv-stat-cell" style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:${rateColor}">${rate}%</td>
+    </tr>`;
+  }).join('');
+}
+function populateYearSel() {
+  const sel=document.getElementById('monthly-year');
+  if(!sel) return;
+  const years=[...new Set(DB.inspections.map(i=>new Date(i.date).getFullYear()))];
+  const cur=new Date().getFullYear();
+  if(!years.includes(cur)) years.unshift(cur);
+  years.sort((a,b)=>b-a);
+  const prev=sel.value;
+  sel.innerHTML=years.map(y=>`<option value="${y}"${y==prev?' selected':''}>${y}</option>`).join('');
+  if(!sel.value) sel.value=cur;
+}
+
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function renderMonthly() {
+  const year=parseInt(document.getElementById('monthly-year')?.value||new Date().getFullYear());
+  const md={vehicle:Array(12).fill(0),hos:Array(12).fill(0),unsafe:Array(12).fill(0)};
+  const mc1=Array(12).fill(0), mc2=Array(12).fill(0), mc3=Array(12).fill(0);
+  const mTotal=Array(12).fill(0);
+  DB.inspections.forEach(i=>{
+    const d=new Date(i.date+'T00:00:00');
+    if(d.getFullYear()!==year) return;
+    const m=d.getMonth();
+    mTotal[m]++;
+    i.violations.forEach(v=>{ if(md[v.category]!==undefined) md[v.category][m]++; });
+    if(i.result==='clean1') mc1[m]++;
+    else if(i.result==='clean2') mc2[m]++;
+    else if(i.result==='clean3') mc3[m]++;
+  });
+
+  // Summary
+  const ms=document.getElementById('monthly-summary');
+  if(ms) ms.innerHTML=[
+    {label:'VM Violations',val:md.vehicle.reduce((a,b)=>a+b,0),col:'var(--blue)'},
+    {label:'HOS Violations',val:md.hos.reduce((a,b)=>a+b,0),col:'var(--caution)'},
+    {label:'Unsafe Violations',val:md.unsafe.reduce((a,b)=>a+b,0),col:'var(--warn)'},
+    {label:'Clean 1 Jami',val:mc1.reduce((a,b)=>a+b,0),col:'var(--safe)'},
+    {label:'Clean 2 Jami',val:mc2.reduce((a,b)=>a+b,0),col:'#00e5a0'},
+    {label:'Clean 3 Jami',val:mc3.reduce((a,b)=>a+b,0),col:'#4ade80'},
+  ].map(s=>`<div class="month-stat"><div class="month-stat-val" style="color:${s.col}">${s.val}</div><div class="month-stat-lbl">${s.label}</div></div>`).join('');
+
+  // Clean per-month table
+  const tb=document.getElementById('monthly-clean-body');
+  if(tb){
+    let totalC1=0,totalC2=0,totalC3=0,totalAll=0;
+    tb.innerHTML=MONTHS.map((mn,mi)=>{
+      totalC1+=mc1[mi]; totalC2+=mc2[mi]; totalC3+=mc3[mi]; totalAll+=mTotal[mi];
+      const cl=mc1[mi]+mc2[mi]+mc3[mi];
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:7px 10px;font-size:11px;color:var(--text2);font-weight:600">${mn}</td>
+        <td style="padding:7px 10px;text-align:center"><span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--safe)">${mc1[mi]||'—'}</span></td>
+        <td style="padding:7px 10px;text-align:center"><span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:#00e5a0">${mc2[mi]||'—'}</span></td>
+        <td style="padding:7px 10px;text-align:center"><span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:#4ade80">${mc3[mi]||'—'}</span></td>
+        <td style="padding:7px 10px;text-align:center"><span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--text1)">${cl||'—'}</span></td>
+        <td style="padding:7px 10px;text-align:center"><span style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace">${mTotal[mi]||'—'}</span></td>
+      </tr>`;
+    }).join('')+`<tr style="border-top:2px solid var(--border2);background:var(--bg3)">
+      <td style="padding:8px 10px;font-size:11px;color:var(--amber);font-weight:700;font-family:'JetBrains Mono',monospace">JAMI</td>
+      <td style="padding:8px 10px;text-align:center;font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:var(--safe)">${totalC1}</td>
+      <td style="padding:8px 10px;text-align:center;font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#00e5a0">${totalC2}</td>
+      <td style="padding:8px 10px;text-align:center;font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#4ade80">${totalC3}</td>
+      <td style="padding:8px 10px;text-align:center;font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:var(--text1)">${totalC1+totalC2+totalC3}</td>
+      <td style="padding:8px 10px;text-align:center;font-size:12px;color:var(--blue);font-family:'JetBrains Mono',monospace;font-weight:700">${totalAll}</td>
+    </tr>`;
+  }
+
+  // Compute per-month points for each category
+  const mpts={vehicle:Array(12).fill(0),hos:Array(12).fill(0),unsafe:Array(12).fill(0)};
+  ['vehicle','hos','unsafe'].forEach(cat=>{
+    for(let m=0;m<12;m++){
+      mpts[cat][m]=calcBASICMonth(cat,year,m).points;
+    }
+  });
+
+  // Helper: render per-category detail table
+  function renderCatTable(tblId, cat, col) {
+    const tbl=document.getElementById(tblId);
+    if(!tbl) return;
+    const thStyle=`padding:6px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;font-family:'JetBrains Mono',monospace;border-bottom:1px solid var(--border2)`;
+    let totalViol=0, totalPts=0;
+    const rows=MONTHS.map((mn,mi)=>{
+      const v=md[cat][mi], p=mpts[cat][mi];
+      totalViol+=v; totalPts+=p;
+      const pColor=p===0?'var(--text3)':p>=30?'var(--danger)':p>=15?'var(--warn)':'var(--caution)';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px 10px;color:var(--text2);font-weight:600">${mn}</td>
+        <td style="padding:6px 10px;text-align:center">
+          ${v?`<span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:${col}">${v}</span>`:'<span style="color:var(--text3)">—</span>'}
+        </td>
+        <td style="padding:6px 10px;text-align:center">
+          ${p?`<span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:${pColor}">${p}</span>`:'<span style="color:var(--text3)">—</span>'}
+        </td>
+        <td style="padding:6px 10px">
+          ${v>0?`<div style="height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;min-width:60px">
+            <div style="height:100%;width:${Math.min(100,p/90*100)}%;background:${pColor};border-radius:3px;transition:width .5s ease"></div>
+          </div>`:''}
+        </td>
+      </tr>`;
+    }).join('');
+    const totalPColor=totalPts===0?'var(--text3)':totalPts>=90?'var(--danger)':totalPts>=45?'var(--warn)':'var(--caution)';
+    tbl.innerHTML=`<thead><tr style="background:var(--bg3)">
+      <th style="${thStyle};text-align:left;color:var(--text3)">Oy</th>
+      <th style="${thStyle};text-align:center;color:${col}">Violations</th>
+      <th style="${thStyle};text-align:center;color:var(--amber)">Jarima Bali</th>
+      <th style="${thStyle};color:var(--text3)">Daraja</th>
+    </tr></thead>
+    <tbody>${rows}
+    <tr style="border-top:2px solid var(--border2);background:var(--bg3)">
+      <td style="padding:8px 10px;font-size:11px;color:var(--amber);font-weight:700;font-family:'JetBrains Mono',monospace">YILLIK JAMI</td>
+      <td style="padding:8px 10px;text-align:center;font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:${col}">${totalViol}</td>
+      <td style="padding:8px 10px;text-align:center;font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:${totalPColor}">${totalPts}</td>
+      <td></td>
+    </tr></tbody>`;
+  }
+  renderCatTable('tbl-m-vm','vehicle','#2e9cff');
+  renderCatTable('tbl-m-hos','hos','#ffd447');
+  renderCatTable('tbl-m-unsafe','unsafe','#ff8c42');
+
+  // Yearly summary table
+  const yrTbl=document.getElementById('tbl-m-yearly');
+  if(yrTbl){
+    const thS=`padding:7px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;font-family:'JetBrains Mono',monospace;border-bottom:1px solid var(--border2)`;
+    const catDefs=[
+      {cat:'vehicle',label:'🔧 Vehicle Maint.',col:'#2e9cff'},
+      {cat:'hos',    label:'⏱️ HOS Compliance',col:'#ffd447'},
+      {cat:'unsafe', label:'⚠️ Unsafe Driving', col:'#ff8c42'},
+    ];
+    const totalsByMonth=MONTHS.map((_,mi)=>{
+      const vTotal=catDefs.reduce((a,c)=>a+md[c.cat][mi],0);
+      const pTotal=catDefs.reduce((a,c)=>a+mpts[c.cat][mi],0);
+      return {v:vTotal,p:pTotal};
+    });
+    const grandV=totalsByMonth.reduce((a,r)=>a+r.v,0);
+    const grandP=totalsByMonth.reduce((a,r)=>a+r.p,0);
+
+    const headerCells=catDefs.map(c=>`
+      <th style="${thS};text-align:center;color:${c.col}" colspan="2">${c.label}</th>`).join('');
+    const subHeaders=catDefs.map(()=>`
+      <th style="${thS};text-align:center;color:var(--text2)">Viol.</th>
+      <th style="${thS};text-align:center;color:var(--amber)">Bal</th>`).join('');
+
+    const bodyRows=MONTHS.map((mn,mi)=>{
+      const cells=catDefs.map(c=>{
+        const v=md[c.cat][mi], p=mpts[c.cat][mi];
+        const pc=p===0?'var(--text3)':p>=30?'var(--danger)':p>=15?'var(--warn)':'var(--caution)';
+        return `<td style="padding:6px 10px;text-align:center">${v?`<span style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:${c.col}">${v}</span>`:'<span style="color:var(--text3)">—</span>'}</td>
+                <td style="padding:6px 10px;text-align:center">${p?`<span style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:${pc}">${p}</span>`:'<span style="color:var(--text3)">—</span>'}`;
+      }).join('</td>');
+      const tv=totalsByMonth[mi].v, tp=totalsByMonth[mi].p;
+      const tpc=tp===0?'var(--text3)':tp>=60?'var(--danger)':tp>=30?'var(--warn)':'var(--caution)';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px 10px;color:var(--text2);font-weight:600">${mn}</td>
+        ${cells}</td>
+        <td style="padding:6px 10px;text-align:center;border-left:1px solid var(--border2)">${tv?`<span style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:var(--text1)">${tv}</span>`:'<span style="color:var(--text3)">—</span>'}</td>
+        <td style="padding:6px 10px;text-align:center">${tp?`<span style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:${tpc}">${tp}</span>`:'<span style="color:var(--text3)">—</span>'}
+        </td>
+      </tr>`;
+    }).join('');
+
+    const gcV=grandV>0?`<span style="font-family:'Orbitron',sans-serif;font-size:15px;font-weight:700;color:var(--text1)">${grandV}</span>`:'—';
+    const gcP=grandP>0?`<span style="font-family:'Orbitron',sans-serif;font-size:15px;font-weight:700;color:${grandP>=150?'var(--danger)':grandP>=75?'var(--warn)':'var(--caution)'}">${grandP}</span>`:'—';
+    const totCells=catDefs.map(c=>{
+      const tv=md[c.cat].reduce((a,b)=>a+b,0), tp=mpts[c.cat].reduce((a,b)=>a+b,0);
+      const pc=tp===0?'var(--text3)':tp>=90?'var(--danger)':tp>=45?'var(--warn)':'var(--caution)';
+      return `<td style="padding:8px 10px;text-align:center;font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:${c.col}">${tv}</td>
+              <td style="padding:8px 10px;text-align:center;font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:${pc}">${tp}</td>`;
+    }).join('');
+
+    yrTbl.innerHTML=`<thead>
+      <tr style="background:var(--bg3)">
+        <th style="${thS};text-align:left;color:var(--text3)" rowspan="2">Oy</th>
+        ${headerCells}
+        <th style="${thS};text-align:center;color:var(--text1);border-left:1px solid var(--border2)" colspan="2">UMUMIY</th>
+      </tr>
+      <tr style="background:var(--bg3)">${subHeaders}
+        <th style="${thS};text-align:center;color:var(--text2);border-left:1px solid var(--border2)">Jami Viol.</th>
+        <th style="${thS};text-align:center;color:var(--amber)">Jami Bal</th>
+      </tr>
+    </thead>
+    <tbody>${bodyRows}
+      <tr style="border-top:2px solid var(--amber);background:rgba(245,166,35,.07)">
+        <td style="padding:9px 10px;font-size:11px;color:var(--amber);font-weight:700;font-family:'JetBrains Mono',monospace">YILLIK JAMI</td>
+        ${totCells}
+        <td style="padding:9px 10px;text-align:center;border-left:1px solid var(--border2)">${gcV}</td>
+        <td style="padding:9px 10px;text-align:center">${gcP}</td>
+      </tr>
+    </tbody>`;
+  }
+
+  const commonOpts={responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,labels:{color:'#8ba8d4',font:{size:10},usePointStyle:true}},
+      tooltip:{callbacks:{label:ctx=>{
+        const cat=ctx.dataset._cat;
+        const mi=ctx.dataIndex;
+        if(cat&&ctx.dataset._isPoints) return ` Jarima: ${ctx.parsed.y} bal`;
+        if(cat) return ` Violations: ${ctx.parsed.y}`;
+        return ` ${ctx.dataset.label}: ${ctx.parsed.y}`;
+      }}}
+    },
+    scales:{
+      x:{ticks:{color:'#8ba8d4',font:{size:11}},grid:{color:'rgba(30,45,71,.3)'},border:{display:false}},
+      y:{id:'yLeft',ticks:{color:'#4a6280',font:{size:10},stepSize:1},grid:{color:'rgba(30,45,71,.4)'},border:{display:false},beginAtZero:true},
+      y2:{id:'yRight',position:'right',ticks:{color:'#8b5cf644',font:{size:10}},grid:{display:false},border:{display:false},beginAtZero:true}
+    }};
+
+  [['ch-m-vm','vehicle','#2e9cff'],['ch-m-hos','hos','#ffd447'],['ch-m-unsafe','unsafe','#ff8c42']].forEach(([id,cat,col])=>{
+    mkChart(id,{type:'bar',data:{labels:MONTHS,datasets:[
+      {label:VC[cat].label,data:md[cat],backgroundColor:`${col}55`,borderColor:col,borderWidth:1.5,borderRadius:5,_cat:cat,yAxisID:'y'},
+      {label:'Violation Trend',data:md[cat],type:'line',borderColor:`${col}88`,borderWidth:2,pointRadius:3,pointBackgroundColor:col,fill:false,tension:.4,_cat:cat,yAxisID:'y'},
+      {label:'Jarima Bali',data:mpts[cat],type:'line',borderColor:'#8b5cf6',borderWidth:2,pointRadius:4,pointBackgroundColor:'#8b5cf6',
+       pointBorderColor:'#fff',pointBorderWidth:1.5,fill:false,tension:.3,borderDash:[5,3],_cat:cat,_isPoints:true,yAxisID:'y2'}
+    ]},options:commonOpts});
+  });
+}
+
+// ============================================================
+// STATIONS
+// ============================================================
+function renderStations() {
+  // ── Counters ─────────────────────────────────────────────
+  const sc={}, scClean={}, scViol={};   // states
+  const wc={}, wcClean={}, wcViol={};   // weigh stations
+
+  DB.inspections.forEach(i=>{
+    const isClean=CLEAN_RESULTS.includes(i.result);
+    const isViol =VIOL_RESULTS.includes(i.result);
+
+    // States
+    sc[i.state]=(sc[i.state]||0)+1;
+    if(isClean) scClean[i.state]=(scClean[i.state]||0)+1;
+    if(isViol)  scViol[i.state] =(scViol[i.state] ||0)+1;
+
+    // Weigh stations
+    wc[i.station]=(wc[i.station]||0)+1;
+    if(isClean) wcClean[i.station]=(wcClean[i.station]||0)+1;
+    if(isViol)  wcViol[i.station] =(wcViol[i.station] ||0)+1;
+  });
+
+  const sortS      =Object.entries(sc).sort((a,b)=>b[1]-a[1]);
+  const sortSClean =Object.entries(scClean).sort((a,b)=>b[1]-a[1]);
+  const sortSViol  =Object.entries(scViol).sort((a,b)=>b[1]-a[1]);
+
+  const sortW      =Object.entries(wc).sort((a,b)=>b[1]-a[1]);
+  const sortWClean =Object.entries(wcClean).sort((a,b)=>b[1]-a[1]);
+  const sortWViol  =Object.entries(wcViol).sort((a,b)=>b[1]-a[1]);
+
+  // ── Shared bar options (horizontal) ──────────────────────
+  const mkBarOpts=()=>({responsive:true,maintainAspectRatio:false,indexAxis:'y',
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.x}}},
+    scales:{
+      x:{ticks:{color:'#4a6280',font:{size:10}},grid:{color:'rgba(30,45,71,.4)'},border:{display:false},beginAtZero:true},
+      y:{ticks:{color:'#8ba8d4',font:{size:11}},grid:{display:false},border:{display:false}}
+    }
+  });
+
+  // ── STATES: Clean chart ───────────────────────────────────
+  const top12SC=sortSClean.slice(0,12);
+  if(top12SC.length) mkChart('ch-states-clean',{type:'bar',data:{
+    labels:top12SC.map(s=>s[0]),
+    datasets:[{data:top12SC.map(s=>s[1]),
+      backgroundColor:top12SC.map((_,i)=>`hsla(${150+i*10},65%,50%,.78)`),
+      borderRadius:4,borderSkipped:false}]
+  },options:mkBarOpts()});
+
+  // ── STATES: Violation chart ───────────────────────────────
+  const top12SV=sortSViol.slice(0,12);
+  if(top12SV.length) mkChart('ch-states-viol',{type:'bar',data:{
+    labels:top12SV.map(s=>s[0]),
+    datasets:[{data:top12SV.map(s=>s[1]),
+      backgroundColor:top12SV.map((_,i)=>`hsla(${355+i*8},70%,55%,.75)`),
+      borderRadius:4,borderSkipped:false}]
+  },options:mkBarOpts()});
+
+  // ── WEIGH STATIONS: Clean chart ───────────────────────────
+  const top10WC=sortWClean.slice(0,10);
+  if(top10WC.length) mkChart('ch-wstations-clean',{type:'bar',data:{
+    labels:top10WC.map(s=>s[0].length>20?s[0].slice(0,18)+'…':s[0]),
+    datasets:[{data:top10WC.map(s=>s[1]),
+      backgroundColor:top10WC.map((_,i)=>`hsla(${155+i*12},60%,48%,.78)`),
+      borderRadius:4,borderSkipped:false}]
+  },options:mkBarOpts()});
+
+  // ── WEIGH STATIONS: Violation chart ───────────────────────
+  const top10WV=sortWViol.slice(0,10);
+  if(top10WV.length) mkChart('ch-wstations-viol',{type:'bar',data:{
+    labels:top10WV.map(s=>s[0].length>20?s[0].slice(0,18)+'…':s[0]),
+    datasets:[{data:top10WV.map(s=>s[1]),
+      backgroundColor:top10WV.map((_,i)=>`hsla(${0+i*10},68%,52%,.75)`),
+      borderRadius:4,borderSkipped:false}]
+  },options:mkBarOpts()});
+
+  // ── Ranked lists (total inspections, unchanged) ───────────
+  renderRankTable('tbl-states',   sortS.slice(0,10));
+  renderRankTable('tbl-wstations',sortW.slice(0,10));
+}
+
+function renderRankTable(id, sorted) {
+  const el=document.getElementById(id);
+  if(!sorted.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-text">Ma\'lumot yo\'q</div></div>';
+    return;
+  }
+  const max=sorted[0][1]||1;
+  el.innerHTML='<div style="display:flex;flex-direction:column;gap:7px">'+sorted.map(([name,cnt],i)=>`
+    <div style="display:flex;align-items:center;gap:9px;padding:8px 11px;background:var(--bg3);border-radius:6px;border:1px solid var(--border)">
+      <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;width:14px;text-align:right">${i+1}</span>
+      <span style="font-size:12px;color:var(--text1);font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
+      <div style="flex:2;background:var(--bg4);border-radius:3px;height:5px;overflow:hidden">
+        <div style="height:100%;width:${cnt/max*100}%;background:var(--amber);border-radius:3px;transition:width .6s ease"></div>
+      </div>
+      <span style="font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;width:24px;text-align:right">${cnt}</span>
+    </div>`).join('')+'</div>';
+}
+
+// ============================================================
+// SAFETY SCORE
+// ============================================================
+function renderSafety() {
+  const cats=[['vehicle','vm'],['hos','hos'],['unsafe','unsafe']];
+  cats.forEach(([cat,k])=>{
+    const r=calcBASIC(cat);
+    updateGauge(`sg-${k}`,r.score,cat);
+    const pts=document.getElementById(`sg-${k}-pts`); if(pts) pts.textContent=r.points;
+    const cnt=document.getElementById(`sg-${k}-cnt`); if(cnt) cnt.textContent=r.count;
+    // breakdown badge
+    const bdSc=document.getElementById(`bd-${k}-sc`);
+    if(bdSc){ bdSc.textContent=r.score+'%'; bdSc.className=`badge ${badgeCls(r.score,cat)}`; }
+    // violation list
+    const bdList=document.getElementById(`bd-${k}-list`);
+    if(bdList){
+      const bd=violBreakdown(cat);
+      bdList.innerHTML=!bd.length?'<div style="color:var(--safe);font-size:11px;padding:8px">✓ Violations yo\'q</div>':
+        bd.map(v=>`<div class="viol-entry">
+          <span class="viol-name">${v.label}</span>
+          <span style="display:flex;align-items:center;gap:5px">
+            <span class="viol-severity ${sevCls(v.severity)}">${v.severity}</span>
+            <span class="viol-count">×${v.count}</span>
+          </span></div>`).join('');
+    }
+  });
+
+  // Severity table
+  const sb=document.getElementById('sev-tbody');
+  if(sb){
+    const rows=[];
+    Object.entries(VC).forEach(([cat,cfg])=>cfg.items.forEach(it=>rows.push({...it,cat:cfg.label,catColor:cfg.color})));
+    rows.sort((a,b)=>b.severity-a.severity);
+    sb.innerHTML=rows.map(r=>`<tr>
+      <td style="color:var(--text1)">${r.label}</td>
+      <td><span class="badge badge-blue" style="background:${r.catColor}18;color:${r.catColor}">${r.cat}</span></td>
+      <td><span class="viol-severity ${sevCls(r.severity)}">${r.severity}/10</span></td>
+    </tr>`).join('');
+  }
+
+  // Time weight chart
+  mkChart('ch-time-w',{type:'bar',data:{
+    labels:['0–6 oy','7–12 oy','13–24 oy','24+ oy'],
+    datasets:[{data:[3,2,1,0],backgroundColor:['rgba(255,56,96,.75)','rgba(255,140,66,.75)','rgba(255,212,71,.75)','rgba(74,98,128,.4)'],borderRadius:6,borderSkipped:false}]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+    x:{ticks:{color:'#8ba8d4',font:{size:11}},grid:{display:false},border:{display:false}},
+    y:{ticks:{color:'#4a6280',stepSize:1},grid:{color:'rgba(30,45,71,.4)'},border:{display:false},max:3.5,beginAtZero:true}
+  }}});
+}
+
+// ============================================================
+// MONITORING
+// ============================================================
+function populateStateSel() {
+  const sel=document.getElementById('ff-state');
+  if(!sel) return;
+  const states=[...new Set(DB.inspections.map(i=>i.state))].sort();
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Barchasi</option>'+states.map(s=>`<option value="${s}"${s===cur?' selected':''}>${s}</option>`).join('');
+}
+
+function applyFilters() {
+  const from=document.getElementById('ff-from').value;
+  const to=document.getElementById('ff-to').value;
+  const res=document.getElementById('ff-result').value;
+  const st=document.getElementById('ff-state').value;
+  const cat=document.getElementById('ff-cat').value;
+  filteredRows=DB.inspections.filter(i=>{
+    if(from&&i.date<from) return false;
+    if(to&&i.date>to) return false;
+    if(res&&i.result!==res) return false;
+    if(st&&i.state!==st) return false;
+    if(cat&&!i.violations.some(v=>v.category===cat)) return false;
+    return true;
+  });
+  renderMonTable(filteredRows);
+}
+
+function resetFilters() {
+  ['ff-from','ff-to'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['ff-result','ff-state','ff-cat'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  filteredRows=null;
+  renderMonTable(DB.inspections);
+}
+
+function renderMonitoring() {
+  const n=DB.inspections.length;
+  const pass=DB.inspections.filter(i=>['clean1','clean2','clean3'].includes(i.result)).length;
+  const cond=DB.inspections.filter(i=>['log','uns_log','unsafe','veh_log','veh_uns'].includes(i.result)).length;
+  const fail=DB.inspections.filter(i=>i.result==='vehicle').length;
+  document.getElementById('m-total').textContent=n;
+  document.getElementById('m-pass').textContent=pass;
+  document.getElementById('m-cond').textContent=cond;
+  document.getElementById('m-fail').textContent=fail;
+
+  // Trend chart
+  const year=new Date().getFullYear();
+  const pd=Array(12).fill(0), cd=Array(12).fill(0), fd=Array(12).fill(0);
+  DB.inspections.forEach(i=>{
+    const d=new Date(i.date+'T00:00:00');
+    if(d.getFullYear()!==year) return;
+    const m=d.getMonth();
+    if(['clean1','clean2','clean3'].includes(i.result)) pd[m]++;
+    else if(['log','uns_log','unsafe','veh_log','veh_uns'].includes(i.result)) cd[m]++;
+    else fd[m]++;
+  });
+  mkChart('ch-mon-trend',{type:'line',data:{labels:MONTHS,datasets:[
+    {label:'Clean 1/2/3', data:pd,borderColor:'#00cc7a',backgroundColor:'rgba(0,204,122,.08)',fill:true,tension:.4,pointRadius:3,pointBackgroundColor:'#00cc7a'},
+    {label:'Log/Unsafe',  data:cd,borderColor:'#ffd447',backgroundColor:'rgba(255,212,71,.08)',fill:true,tension:.4,pointRadius:3,pointBackgroundColor:'#ffd447'},
+    {label:'Veh/Vehicle', data:fd,borderColor:'#ff3860',backgroundColor:'rgba(255,56,96,.08)',fill:true,tension:.4,pointRadius:3,pointBackgroundColor:'#ff3860'},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#8ba8d4',font:{size:11},usePointStyle:true}}},scales:{
+    x:{ticks:{color:'#8ba8d4',font:{size:11}},grid:{color:'rgba(30,45,71,.3)'},border:{display:false}},
+    y:{ticks:{color:'#4a6280',font:{size:10},stepSize:1},grid:{color:'rgba(30,45,71,.35)'},border:{display:false},beginAtZero:true}
+  }}});
+
+  populateStateSel();
+  renderMonTable(filteredRows||DB.inspections);
+}
+
+function renderMonTable(rows) {
+  const tbody=document.getElementById('mon-tbody');
+  const cnt=document.getElementById('mon-count');
+  if(!rows.length){
+    tbody.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:32px;color:var(--text3)"><div style="font-size:28px;margin-bottom:8px">👁️</div>Hali ma'lumot kiritilmagan</td></tr>`;
+    if(cnt) cnt.textContent='0 ta yozuv';
+    return;
+  }
+  if(cnt) cnt.textContent=`${rows.length} ta yozuv`;
+  tbody.innerHTML=rows.map((i,idx)=>{
+    // Calculate actual weighted points per category for this single inspection
+    const now=new Date();
+    const mo=monthsDiff(i.date,now);
+    const tw=mo<=6?3:mo<=12?2:mo<=24?1:0;
+    const vmPts = i.violations.filter(v=>v.category==='vehicle').reduce((s,v)=>s+Math.min(((v.severity||0)+(v.oos?2:0))*tw,30),0);
+    const hosPts = i.violations.filter(v=>v.category==='hos').reduce((s,v)=>s+Math.min(((v.severity||0)+(v.oos?2:0))*tw,30),0);
+    const unsPts = i.violations.filter(v=>v.category==='unsafe').reduce((s,v)=>s+Math.min(((v.severity||0)+(v.oos?2:0))*tw,30),0);
+    const oosCnt=i.violations.filter(v=>v.oos).length;
+    const tot=i.violations.length;
+    const totPts=vmPts+hosPts+unsPts;
+    const rb=i.result==='fail'?'rgba(255,56,96,.04)':i.result==='conditional'?'rgba(255,212,71,.04)':'';
+    return `<tr style="background:${rb}">
+      <td style="color:var(--text3);font-family:'JetBrains Mono',monospace">${rows.length-idx}</td>
+      <td style="color:var(--text1);font-weight:600">${fmtDate(i.date)}</td>
+      <td>${i.driver}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--amber)">${i.vehicle}</td>
+      <td><span class="badge badge-blue">${i.state}</span></td>
+      <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis">${i.station}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--text3)">L${i.level}</td>
+      <td>${vmPts?`<span class="badge badge-warning" title="${i.violations.filter(v=>v.category==='vehicle').length} viol.">${vmPts} bal</span>`:'<span style="color:var(--text3)">—</span>'}</td>
+      <td>${hosPts?`<span class="badge badge-caution" title="${i.violations.filter(v=>v.category==='hos').length} viol.">${hosPts} bal</span>`:'<span style="color:var(--text3)">—</span>'}</td>
+      <td>${unsPts?`<span class="badge badge-danger" title="${i.violations.filter(v=>v.category==='unsafe').length} viol.">${unsPts} bal</span>`:'<span style="color:var(--text3)">—</span>'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:${totPts>0?'var(--warn)':'var(--safe)'}">
+        ${totPts} bal${oosCnt>0?` <span class="badge badge-danger" style="font-size:8px;padding:1px 5px">OOS:${oosCnt}</span>`:''}
+        <div style="font-size:9px;color:var(--text3);font-weight:400">${tot} viol.</div>
+      </td>
+      <td>${resultBadge(i.result)}</td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-secondary" style="padding:3px 8px;font-size:10px" onclick="editRow('${i.id}')">✏️</button>
+        <button class="btn btn-danger" style="padding:3px 8px;font-size:10px" onclick="deleteRow('${i.id}')">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================================
+// EDIT FUNCTIONS
+// ============================================================
+let editingId = null;
+
+function buildEditViolPanels() {
+  Object.entries(VC).forEach(([cat,cfg])=>{
+    const el=document.getElementById(`evp-${cat}`);
+    if(!el) return;
+    el.innerHTML=cfg.items.map(it=>`
+      <div class="viol-item" data-code="${it.code||it.id}" data-en="${it.label.toLowerCase()}" data-uz="${(it.labelUz||'').toLowerCase()}">
+        <input type="checkbox" id="evi-${it.id}" data-cat="${cat}" data-sev="${it.severity}" data-lbl="${it.label}" data-code="${it.code||it.id}" onclick="onEditViolClick(event,this)">
+        <div style="flex:1;min-width:0" onclick="onEditViolLabelClick(event,'evi-${it.id}')">
+          <div style="font-size:9px;color:var(--amber);font-family:'JetBrains Mono',monospace;margin-bottom:2px">${it.code||it.id}</div>
+          <label for="evi-${it.id}" style="display:block;cursor:pointer">${it.label}</label>
+          ${it.labelUz?`<div style="font-size:10px;color:var(--text3);margin-top:1px">${it.labelUz}</div>`:''}
+        </div>
+        <span class="viol-severity ${sevCls(it.severity)}">${it.severity}</span>
+        <label class="oos-toggle" id="eoos-lbl-${it.id}" title="Out of Service — +2 point" onclick="onEditOosClick(event,'${it.id}')">
+          <input type="checkbox" id="eoos-${it.id}" data-viol="${it.id}" style="pointer-events:none">
+          🚫 OOS
+        </label>
+      </div>`).join('');
+  });
+}
+
+function onEditViolClick(event, cb) {
+  event.stopPropagation();
+  if(!cb.checked) {
+    const violId=cb.id.replace('evi-','');
+    const oosCb=document.getElementById(`eoos-${violId}`);
+    const oosLbl=document.getElementById(`eoos-lbl-${violId}`);
+    if(oosCb) oosCb.checked=false;
+    if(oosLbl) oosLbl.classList.remove('oos-active');
+    const item=cb.closest('.viol-item');
+    if(item) item.classList.remove('has-oos');
+  }
+}
+
+function onEditViolLabelClick(event, violInputId) {
+  event.stopPropagation();
+  const cb=document.getElementById(violInputId);
+  if(!cb) return;
+  cb.checked=!cb.checked;
+  if(!cb.checked) {
+    const violId=violInputId.replace('evi-','');
+    const oosCb=document.getElementById(`eoos-${violId}`);
+    const oosLbl=document.getElementById(`eoos-lbl-${violId}`);
+    const item=cb.closest('.viol-item');
+    if(oosCb) oosCb.checked=false;
+    if(oosLbl) oosLbl.classList.remove('oos-active');
+    if(item) item.classList.remove('has-oos');
+  }
+}
+
+function onEditOosClick(event, violId) {
+  event.stopPropagation();
+  const violCb=document.getElementById(`evi-${violId}`);
+  const oosCb=document.getElementById(`eoos-${violId}`);
+  const oosLbl=document.getElementById(`eoos-lbl-${violId}`);
+  const item=oosCb?.closest('.viol-item');
+  if(!oosCb) return;
+  oosCb.checked=!oosCb.checked;
+  if(oosCb.checked) {
+    if(violCb&&!violCb.checked) violCb.checked=true;
+    if(oosLbl) oosLbl.classList.add('oos-active');
+    if(item) item.classList.add('has-oos');
+  } else {
+    if(oosLbl) oosLbl.classList.remove('oos-active');
+    if(item) item.classList.remove('has-oos');
+  }
+}
+
+function switchEditViolTab(cat,btn) {
+  document.querySelectorAll('#edit-modal .viol-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#edit-modal .viol-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(`evp-${cat}`).classList.add('active');
+}
+
+function filterEditViolations(q) {
+  q=q.trim().toLowerCase();
+  let total=0,best=null,bestCount=0;
+  document.querySelectorAll('#edit-modal .viol-item').forEach(item=>{
+    const code=(item.dataset.code||'').toLowerCase();
+    const en=(item.dataset.en||'').toLowerCase();
+    const uz=(item.dataset.uz||'').toLowerCase();
+    const match=!q||code.includes(q)||en.includes(q)||uz.includes(q);
+    item.style.display=match?'':'none';
+    if(match) total++;
+  });
+  if(q){
+    ['vehicle','hos','unsafe','fitness'].forEach(cat=>{
+      const panel=document.getElementById(`evp-${cat}`);
+      const vis=panel?panel.querySelectorAll('.viol-item:not([style*="none"])').length:0;
+      if(vis>bestCount){bestCount=vis;best=cat;}
+    });
+    if(best&&bestCount>0){
+      const btn=document.getElementById(`etab-${best}`);
+      if(btn) switchEditViolTab(best,btn);
+    }
+  }
+}
+
+function editRow(id) {
+  const insp=DB.inspections.find(i=>i.id===id);
+  if(!insp) return;
+  editingId=id;
+  buildEditViolPanels();
+  document.getElementById('e-date').value=insp.date;
+  document.getElementById('e-state').value=insp.state;
+  document.getElementById('e-station').value=insp.station||'';
+  document.getElementById('e-level').value=insp.level||1;
+  document.getElementById('e-driver').value=insp.driver||'';
+  document.getElementById('e-vehicle').value=insp.vehicle||'';
+  document.getElementById('e-result').value=insp.result||'pass';
+  document.getElementById('e-notes').value=insp.notes||'';
+  document.getElementById('e-viol-search').value='';
+  // Check existing violations + OOS
+  document.querySelectorAll('#edit-modal input[type="checkbox"]').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('#edit-modal .oos-toggle').forEach(lbl=>lbl.classList.remove('oos-active'));
+  document.querySelectorAll('#edit-modal .viol-item').forEach(item=>item.classList.remove('has-oos'));
+  insp.violations.forEach(v=>{
+    const cb=document.getElementById(`evi-${v.id}`);
+    if(cb) cb.checked=true;
+    if(v.oos) {
+      const oosCb=document.getElementById(`eoos-${v.id}`);
+      const oosLbl=document.getElementById(`eoos-lbl-${v.id}`);
+      if(oosCb) { oosCb.checked=true; }
+      if(oosLbl) oosLbl.classList.add('oos-active');
+      if(cb) { const item=cb.closest('.viol-item'); if(item) item.classList.add('has-oos'); }
+    }
+  });
+  // Reset tabs
+  document.querySelectorAll('#edit-modal .viol-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#edit-modal .viol-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('etab-vehicle').classList.add('active');
+  document.getElementById('evp-vehicle').classList.add('active');
+  document.getElementById('edit-modal').style.display='block';
+}
+
+function closeEdit() {
+  document.getElementById('edit-modal').style.display='none';
+  editingId=null;
+}
+
+function saveEdit() {
+  if(!editingId) return;
+  const idx=DB.inspections.findIndex(i=>i.id===editingId);
+  if(idx===-1) return;
+  const date=document.getElementById('e-date').value;
+  const state=document.getElementById('e-state').value;
+  if(!date||!state){ toast('Sana va Shtatni kiriting!','error'); return; }
+  const violations=[];
+  document.querySelectorAll('#edit-modal .viol-item input[type="checkbox"]:checked').forEach(cb=>{
+    if(cb.id.startsWith('eoos-')) return;
+    const violId=cb.id.replace('evi-','');
+    const oosCb=document.getElementById(`eoos-${violId}`);
+    const oos=oosCb?oosCb.checked:false;
+    violations.push({id:cb.dataset.code||violId,category:cb.dataset.cat,severity:parseInt(cb.dataset.sev),oos:oos,label:cb.dataset.lbl});
+  });
+  DB.inspections[idx]={
+    ...DB.inspections[idx],
+    date, state,
+    station:document.getElementById('e-station').value||"Noma'lum",
+    driver:document.getElementById('e-driver').value||"Noma'lum",
+    vehicle:document.getElementById('e-vehicle').value||"Noma'lum",
+    notes:document.getElementById('e-notes').value||'',
+    level:parseInt(document.getElementById('e-level').value),
+    result:document.getElementById('e-result').value,
+    violations, updatedAt:new Date().toISOString()
+  };
+  save();
+  closeEdit();
+  toast('Yozuv yangilandi! ✅');
+  refreshTab(activeTab);
+  populateYearSel();
+  populateStateSel();
+}
+
+function deleteRow(id) {
+  if(!confirm('Bu yozuvni o\'chirishni tasdiqlaysizmi?')) return;
+  DB.inspections=DB.inspections.filter(i=>i.id!==id);
+  filteredRows=filteredRows?filteredRows.filter(i=>i.id!==id):null;
+  save();
+  toast('Yozuv o\'chirildi','error');
+  refreshTab(activeTab);
+}
+
+function exportCSV() {
+  const rows=filteredRows||DB.inspections;
+  if(!rows.length){ toast('Eksport uchun ma\'lumot yo\'q','error'); return; }
+  const h=['Sana','Haydovchi','Avtomobil','Shtat','Stansiya','Level','VM','HOS','Unsafe','Jami','Natija'];
+  const r=rows.map(i=>[i.date,i.driver,i.vehicle,i.state,i.station,`L${i.level}`,
+    i.violations.filter(v=>v.category==='vehicle').length,
+    i.violations.filter(v=>v.category==='hos').length,
+    i.violations.filter(v=>v.category==='unsafe').length,
+    i.violations.length,i.result]);
+  const csv=[h,...r].map(row=>row.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=`dot-monitor-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  toast('CSV yuklab olindi!');
+}
+
+// ============================================================
+// CLOCK
+// ============================================================
+function tick() {
+  const n=new Date();
+  const t=document.getElementById('currentTime');
+  const d=document.getElementById('currentDate');
+  if(t) t.textContent=n.toLocaleTimeString('en-US',{hour12:false});
+  if(d) d.textContent=n.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded',()=>{
+  load();
+  buildViolPanels();
+  document.getElementById('f-date').value=new Date().toISOString().slice(0,10);
+  populateYearSel();
+  renderDashboard();
+  tick();
+  setInterval(tick, 1000);
+  // Auto-refresh gauges every 30s
+  setInterval(()=>{ if(activeTab==='dashboard') renderDashboard(); if(activeTab==='safety') renderSafety(); }, 30000);
+});
+</script>
+</body>
+</html>
