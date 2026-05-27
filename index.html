@@ -1375,25 +1375,22 @@ function toast(msg, type='success') {
   setTimeout(()=>t.remove(),3100);
 }
 function mkChart(id, cfg) {
-  const el = document.getElementById(id);
+  let el = document.getElementById(id);
   if (!el) return;
 
-  // 1. ENG ASOSIYSI: Canvas elementining o'ziga bog'lanib qolgan eski grafikni o'chirish
+  // 1. Grafikning eski qoldiqlarini o'chirish
   const existingChart = Chart.getChart(el);
-  if (existingChart) {
-    existingChart.destroy();
-  }
+  if (existingChart) existingChart.destroy();
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
 
-  // 2. Global ob'ektdan ham o'chirish
-  if (charts[id]) { 
-    charts[id].destroy(); 
-    delete charts[id]; 
-  }
+  // 2. ENG KUCHLI YECHIM: Canvas elementini klonlab, eski qiyshaygan elementni butunlay yangisiga almashtirish
+  // Bu inline-style o'lchamlar loopini va arvohlarni ildizi bilan yo'q qiladi
+  const newEl = el.cloneNode(true);
+  el.parentNode.replaceChild(newEl, el);
   
-  const ctx = el.getContext('2d');
-  ctx.clearRect(0, 0, el.width, el.height);
+  const ctx = newEl.getContext('2d');
   
-  // 3. Yarim doira shakli buzilmasdan, chiroyli aylana turishi uchun TRUE qilamiz
+  // 3. Yarim doira chiroyli va dumaloq turishi uchun sozlamalar
   if(!cfg.options) cfg.options = {};
   cfg.options.responsive = true;
   cfg.options.maintainAspectRatio = true; 
