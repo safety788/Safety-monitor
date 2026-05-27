@@ -961,6 +961,8 @@ td{padding:9px 12px;font-size:11px;color:var(--text2);white-space:nowrap}
 </div>
 <div class="toast-container" id="toasts"></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
 // ============================================================
 // VIOLATIONS CONFIG
@@ -1257,16 +1259,48 @@ const VC = {
     {id:"f_392_15_da",        code:"392.15",             label:"Driver Prohibited from Performing Safety Sensitive Functions (Drug and Alcohol Clearinghouse 382.501(a))", labelUz:"Giyohvand/Alkohol Clearinghouse — haydovchi xavfsizlikka oid vazifalar bajarishdan taqiqlangan", severity:10},
   ]}
 };
+  
+// ============================================================
+// DATA LAYER & FIREBASE
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCSzPXOaUy302JH2ssr90lf3fZ62KRXVqU",
+  authDomain: "safety-monitor-2e2c0.firebaseapp.com",
+  databaseURL: "https://safety-monitor-2e2c0-default-rtdb.firebaseio.com",
+  projectId: "safety-monitor-2e2c0",
+  storageBucket: "safety-monitor-2e2c0.firebasestorage.app",
+  messagingSenderId: "414568447034",
+  appId: "1:414568447034:web:cbd2aed7853729c00e4903",
+  measurementId: "G-3546C4GTZP"
+};
 
-// ============================================================
-// DATA LAYER
-// ============================================================
+// Firebase'ni ishga tushirish
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+const dbRef = database.ref('dotmon_data');
+
 let DB = { inspections: [] };
 let filteredRows = null;
 const charts = {};
 
-function load()  { const s=localStorage.getItem('dotmon'); if(s) DB=JSON.parse(s); }
-function save()  { localStorage.setItem('dotmon', JSON.stringify(DB)); }
+// Baza o'zgarganda avtomatik saytni yangilash
+dbRef.on('value', (snapshot) => {
+  const data = snapshot.val();
+  if (data) {
+    DB = data;
+    if (!DB.inspections) DB.inspections = [];
+  } else {
+    DB = { inspections: [] };
+  }
+  
+  populateYearSel();
+  refreshTab(activeTab);
+});
+
+function save() { 
+  dbRef.set(DB); 
+}
+ 
 
 // ============================================================
 // UTILITIES
@@ -2608,20 +2642,16 @@ function tick() {
   if(d) d.textContent=n.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 }
 
-// ============================================================
+ // ============================================================
 // INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded',()=>{
-  load();
   buildViolPanels();
   document.getElementById('f-date').value=new Date().toISOString().slice(0,10);
-  populateYearSel();
-  renderDashboard();
   tick();
   setInterval(tick, 1000);
-  // Auto-refresh gauges every 30s
-  setInterval(()=>{ if(activeTab==='dashboard') renderDashboard(); if(activeTab==='safety') renderSafety(); }, 30000);
 });
+
 </script>
 </body>
 </html>
